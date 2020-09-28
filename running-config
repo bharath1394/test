@@ -1,0 +1,350 @@
+: Saved
+: 
+: Serial Number: JMX1115Z26A
+: Hardware:   ASA5505, 256 MB RAM, CPU Geode 500 MHz
+: Written by enable_15 at 15:26:11.639 UTC Mon Sep 28 2020
+!
+ASA Version 9.2(4) 
+!
+hostname ciscoasa
+enable password 8Ry2YjIyt7RRXU24 encrypted
+names
+!
+interface Ethernet0/0
+ shutdown
+!
+interface Ethernet0/1
+!
+interface Ethernet0/2
+ switchport access vlan 2
+!
+interface Ethernet0/3
+!
+interface Ethernet0/4
+switchport access vlan 4
+!
+interface Ethernet0/5
+!
+interface Ethernet0/6
+ switchport access vlan 6
+!
+interface Ethernet0/7
+ switchport access vlan 6
+!
+interface Vlan1
+ no nameif
+ no security-level
+ no ip address
+!
+interface Vlan4
+ nameif internet
+ security-level 0
+ ip address 192.168.47.228 255.255.255.0 
+!
+interface Vlan6
+ nameif montreal
+ security-level 100
+ ip address 192.168.4.1 255.255.255.0 
+!
+ftp mode passive
+object network obj_any
+ subnet 192.168.4.0 255.255.255.0
+object network NETWORK_OBJ_192.168.139.0_24
+ subnet 192.168.139.0 255.255.255.0
+object network NETWORK_OBJ_192.168.4.0_24
+ subnet 192.168.4.0 255.255.255.0
+access-list 101 extended deny tcp 192.168.4.0 255.255.255.0 any eq www 
+access-list 101 extended permit ip any any 
+access-list internet_cryptomap extended permit ip 192.168.4.0 255.255.255.0 192.168.139.0 255.255.255.0 
+pager lines 24
+mtu internet 1500
+mtu montreal 1500
+icmp unreachable rate-limit 1 burst-size 1
+asdm image disk0:/asdm-751.bin
+no asdm history enable
+arp timeout 14400
+no arp permit-nonconnected
+nat (montreal,internet) source static NETWORK_OBJ_192.168.4.0_24 NETWORK_OBJ_192.168.4.0_24 destination static NETWORK_OBJ_1192.168.4.092.168.139.0_24 NETWORK_OBJ_192.168.139.0_24 no-proxy-arp route-lookup
+!
+object network obj_any
+ nat (montreal,internet) dynamic interface
+access-group 101 in interface montreal
+route internet 0.0.0.0 0.0.0.0 192.168.47.1 1
+timeout xlate 3:00:00
+timeout pat-xlate 0:00:30
+timeout conn 1:00:00 half-closed 0:10:00 udp 0:02:00 icmp 0:00:02
+timeout sunrpc 0:10:00 h323 0:05:00 h225 1:00:00 mgcp 0:05:00 mgcp-pat 0:05:00
+timeout sip 0:30:00 sip_media 0:02:00 sip-invite 0:03:00 sip-disconnect 0:02:00
+timeout sip-provisional-media 0:02:00 uauth 0:05:00 absolute
+timeout tcp-proxy-reassembly 0:01:00
+timeout floating-conn 0:00:00
+dynamic-access-policy-record DfltAccessPolicy
+aaa-server ASARadius2 protocol radius
+aaa-server ASARadius2 (internet) host 192.168.191.2
+ key abc123...
+ authentication-port 1812
+ accounting-port 1813
+ radius-common-pw abc123...
+user-identity default-domain LOCAL
+aaa authentication ssh console LOCAL 
+aaa authentication telnet console ASARadius2 LOCAL
+http server enable
+http 192.168.4.0 255.255.255.0 montreal
+no snmp-server location
+no snmp-server contact
+crypto ipsec ikev1 transform-set ESP-AES-128-SHA esp-aes esp-sha-hmac 
+crypto ipsec ikev1 transform-set ESP-AES-128-MD5 esp-aes esp-md5-hmac 
+crypto ipsec ikev1 transform-set ESP-AES-192-SHA esp-aes-192 esp-sha-hmac 
+crypto ipsec ikev1 transform-set ESP-AES-192-MD5 esp-aes-192 esp-md5-hmac 
+crypto ipsec ikev1 transform-set ESP-AES-256-SHA esp-aes-256 esp-sha-hmac 
+crypto ipsec ikev1 transform-set ESP-AES-256-MD5 esp-aes-256 esp-md5-hmac 
+crypto ipsec ikev1 transform-set ESP-AES-128-SHA-TRANS esp-aes esp-sha-hmac 
+crypto ipsec ikev1 transform-set ESP-AES-128-SHA-TRANS mode transport
+crypto ipsec ikev1 transform-set ESP-AES-128-MD5-TRANS esp-aes esp-md5-hmac 
+crypto ipsec ikev1 transform-set ESP-AES-128-MD5-TRANS mode transport
+crypto ipsec ikev1 transform-set ESP-AES-192-SHA-TRANS esp-aes-192 esp-sha-hmac 
+crypto ipsec ikev1 transform-set ESP-AES-192-SHA-TRANS mode transport
+crypto ipsec ikev1 transform-set ESP-AES-192-MD5-TRANS esp-aes-192 esp-md5-hmac 
+crypto ipsec ikev1 transform-set ESP-AES-192-MD5-TRANS mode transport
+crypto ipsec ikev1 transform-set ESP-AES-256-SHA-TRANS esp-aes-256 esp-sha-hmac 
+crypto ipsec ikev1 transform-set ESP-AES-256-SHA-TRANS mode transport
+crypto ipsec ikev1 transform-set ESP-AES-256-MD5-TRANS esp-aes-256 esp-md5-hmac 
+crypto ipsec ikev1 transform-set ESP-AES-256-MD5-TRANS mode transport
+crypto ipsec ikev1 transform-set ESP-3DES-SHA esp-3des esp-sha-hmac 
+crypto ipsec ikev1 transform-set ESP-3DES-MD5 esp-3des esp-md5-hmac 
+crypto ipsec ikev1 transform-set ESP-3DES-SHA-TRANS esp-3des esp-sha-hmac 
+crypto ipsec ikev1 transform-set ESP-3DES-SHA-TRANS mode transport
+crypto ipsec ikev1 transform-set ESP-3DES-MD5-TRANS esp-3des esp-md5-hmac 
+crypto ipsec ikev1 transform-set ESP-3DES-MD5-TRANS mode transport
+crypto ipsec ikev1 transform-set ESP-DES-SHA esp-des esp-sha-hmac 
+crypto ipsec ikev1 transform-set ESP-DES-MD5 esp-des esp-md5-hmac 
+crypto ipsec ikev1 transform-set ESP-DES-SHA-TRANS esp-des esp-sha-hmac 
+crypto ipsec ikev1 transform-set ESP-DES-SHA-TRANS mode transport
+crypto ipsec ikev1 transform-set ESP-DES-MD5-TRANS esp-des esp-md5-hmac 
+crypto ipsec ikev1 transform-set ESP-DES-MD5-TRANS mode transport
+crypto ipsec ikev2 ipsec-proposal DES
+ protocol esp encryption des
+ protocol esp integrity sha-1 md5
+crypto ipsec ikev2 ipsec-proposal 3DES
+ protocol esp encryption 3des
+ protocol esp integrity sha-1 md5
+crypto ipsec ikev2 ipsec-proposal AES
+ protocol esp encryption aes
+ protocol esp integrity sha-1 md5
+crypto ipsec ikev2 ipsec-proposal AES192
+ protocol esp encryption aes-192
+ protocol esp integrity sha-1 md5
+crypto ipsec ikev2 ipsec-proposal AES256
+ protocol esp encryption aes-256
+ protocol esp integrity sha-1 md5
+crypto ipsec security-association pmtu-aging infinite
+crypto map internet_map 1 match address internet_cryptomap
+crypto map internet_map 1 set peer 221.192.3.3 
+crypto map internet_map 1 set ikev1 transform-set ESP-AES-128-SHA ESP-AES-128-MD5 ESP-AES-192-SHA ESP-AES-192-MD5 ESP-AES-256-SHA ESP-AES-256-MD5 ESP-3DES-SHA ESP-3DES-MD5 ESP-DES-SHA ESP-DES-MD5
+crypto map internet_map 1 set ikev2 ipsec-proposal AES256 AES192 AES 3DES DES
+crypto map internet_map interface internet
+crypto ca trustpool policy
+crypto ikev2 policy 1
+ encryption aes-256
+ integrity sha
+ group 5 2
+ prf sha
+ lifetime seconds 86400
+crypto ikev2 policy 10
+ encryption aes-192
+ integrity sha
+ group 5 2
+ prf sha
+ lifetime seconds 86400
+crypto ikev2 policy 20
+ encryption aes
+ integrity sha
+ group 5 2
+ prf sha
+ lifetime seconds 86400
+crypto ikev2 policy 30
+ encryption 3des
+ integrity sha
+ group 5 2
+ prf sha
+ lifetime seconds 86400
+crypto ikev2 policy 40
+ encryption des
+ integrity sha
+ group 5 2
+ prf sha
+ lifetime seconds 86400
+crypto ikev2 enable internet
+crypto ikev1 enable internet
+crypto ikev1 policy 10
+ authentication crack
+ encryption aes-256
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 20
+ authentication rsa-sig
+ encryption aes-256
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 30
+ authentication pre-share
+ encryption aes-256
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 40
+ authentication crack
+ encryption aes-192
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 50
+ authentication rsa-sig
+ encryption aes-192
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 60
+ authentication pre-share
+ encryption aes-192
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 70
+ authentication crack
+ encryption aes
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 80
+ authentication rsa-sig
+ encryption aes
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 90
+ authentication pre-share
+ encryption aes
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 100
+ authentication crack
+ encryption 3des
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 110
+ authentication rsa-sig
+ encryption 3des
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 120
+ authentication pre-share
+ encryption 3des
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 130
+ authentication crack
+ encryption des
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 140
+ authentication rsa-sig
+ encryption des
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 150
+ authentication pre-share
+ encryption des
+ hash sha
+ group 2
+ lifetime 86400
+crypto ikev1 policy 65535
+ authentication pre-share
+ encryption 3des
+ hash sha
+ group 2
+ lifetime 86400
+telnet timeout 5
+ssh stricthostkeycheck
+ssh 192.168.4.0 255.255.255.0 montreal
+ssh timeout 5
+ssh key-exchange group dh-group1-sha1
+console timeout 0
+
+dhcpd address 192.168.4.110-192.168.4.120 montreal
+dhcpd dns 192.168.20.10 8.8.8.8 interface montreal
+dhcpd auto_config internet interface montreal
+dhcpd update dns interface montreal
+dhcpd enable montreal
+!
+threat-detection basic-threat
+threat-detection statistics access-list
+no threat-detection statistics tcp-intercept
+group-policy GroupPolicy_221.192.3.3 internal
+group-policy GroupPolicy_221.192.3.3 attributes
+ vpn-tunnel-protocol ikev1 ikev2 
+username david password CalsY9WojFzbW36U encrypted
+username robert password yXUoa8oHzS0Ncp2O encrypted privilege 15
+tunnel-group 221.192.3.3 type ipsec-l2l
+tunnel-group 221.192.3.3 general-attributes
+ default-group-policy GroupPolicy_221.192.3.3
+tunnel-group 221.192.3.3 ipsec-attributes
+ ikev1 pre-shared-key cisco45612
+ ikev2 remote-authentication pre-shared-key cisco45612
+ ikev2 local-authentication pre-shared-key cisco45612
+!
+class-map inspection_default
+ match default-inspection-traffic
+!
+!
+policy-map type inspect dns preset_dns_map
+ parameters
+  message-length maximum client auto
+  message-length maximum 512
+policy-map global_policy
+ class inspection_default
+  inspect dns preset_dns_map 
+  inspect ftp 
+  inspect h323 h225 
+  inspect h323 ras 
+  inspect ip-options 
+  inspect netbios 
+  inspect rsh 
+  inspect rtsp 
+  inspect skinny  
+  inspect esmtp 
+  inspect sqlnet 
+  inspect sunrpc 
+  inspect tftp 
+  inspect sip  
+  inspect xdmcp 
+!
+service-policy global_policy global
+prompt hostname context 
+call-home reporting anonymous prompt 2
+call-home
+ profile CiscoTAC-1
+  no active
+  destination address http https://tools.cisco.com/its/service/oddce/services/DDCEService
+  destination address email callhome@cisco.com
+  destination transport-method http
+  subscribe-to-alert-group diagnostic
+  subscribe-to-alert-group environment
+  subscribe-to-alert-group inventory periodic monthly
+  subscribe-to-alert-group configuration periodic monthly
+  subscribe-to-alert-group telemetry periodic daily
+event manager applet restartin17
+ description backup the ASA in 17 hours
+ event timer watchdog time 61200
+ action 0 cli command "reload /noconfirm"
+ output file new
+Cryptochecksum:e8948c5f3d36e6ffd730482ed4c79936
+: end
