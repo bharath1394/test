@@ -39,6 +39,21 @@ Automated Testing: After deployment, automated tests will be executed to ensure 
 With 10 environments (8 QA, 1 performance, 1 production), we will manage the infrastructure code for Amazon Connect and Lambda by creating environment-specific configurations in separate folders within each repository.
 
 Amazon Connect Repository Folder Structure:
+amazon-connect-repo/
+  lib/
+    qa1/
+      flows.ts         # Contains the specific flows and configurations for QA1
+    qa2/
+      flows.ts         # Contains the specific flows and configurations for QA2
+    perf/
+      flows.ts         # Contains the specific flows and configurations for Performance
+    prod/
+      flows.ts         # Contains the specific flows and configurations for Production
+  bin/
+    connect.ts         # This is the main CDK stack that provisions the Amazon Connect instance and other necessary resources for each environment
+  cdk.json            # CDK configuration file for the repository
+  package.json        # Node.js dependencies and scripts for the CDK application
+
 
 Lambda Repository Folder Structure:
 lambda-repo/
