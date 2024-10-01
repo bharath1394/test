@@ -42,17 +42,34 @@ Amazon Connect Repository Folder Structure:
 amazon-connect-repo/
   lib/
     qa1/
-      flows.ts         # Contains the specific flows and configurations for QA1
+      flows/
+        flow1.ts       # Individual flow 1 configuration for QA1
+        flow2.ts       # Individual flow 2 configuration for QA1
+        ...
+        flow70.ts      # Individual flow 70 configuration for QA1
+      qa1-flows-stack.ts  # Stack that manages all flows for QA1 environment
     qa2/
-      flows.ts         # Contains the specific flows and configurations for QA2
+      flows/
+        flow1.ts       # Individual flow 1 configuration for QA2
+        flow2.ts       # Individual flow 2 configuration for QA2
+        ...
+        flow70.ts      # Individual flow 70 configuration for QA2
+      qa2-flows-stack.ts  # Stack that manages all flows for QA2 environment
     perf/
-      flows.ts         # Contains the specific flows and configurations for Performance
+      flows/
+        flow1.ts       # Individual flow 1 configuration for Performance
+        ...
+      perf-flows-stack.ts # Stack that manages all flows for Performance environment
     prod/
-      flows.ts         # Contains the specific flows and configurations for Production
+      flows/
+        flow1.ts       # Individual flow 1 configuration for Production
+        ...
+      prod-flows-stack.ts # Stack that manages all flows for Production environment
   bin/
-    connect.ts         # This is the main CDK stack that provisions the Amazon Connect instance and other necessary resources for each environment
-  cdk.json            # CDK configuration file for the repository
-  package.json        # Node.js dependencies and scripts for the CDK application
+    connect.ts           # Main CDK stack for creating Amazon Connect instances and configuring the base infrastructure
+  cdk.json              # CDK configuration file for the repository
+  package.json          # Node.js dependencies and scripts for the CDK application
+
 
 
 Lambda Repository Folder Structure:
