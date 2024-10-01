@@ -1,0 +1,184 @@
+2. Repository Structure
+To maintain clarity and simplify deployment, we will use two separate repositories:
+
+Lambda Repository: This will contain all the code and infrastructure related to AWS Lambda functions.
+Amazon Connect Repository: This will hold all Amazon Connect flows and configurations, including infrastructure code for deployment.
+This separation helps isolate the responsibilities and ensures independent scaling of the CI/CD processes.
+
+3. Branching Strategy
+We plan to adopt a branching strategy that ensures smooth development, testing, and deployment to multiple environments:
+
+Feature Branches
+
+Purpose: Individual developers will create a feature branch for each new feature, bug fix, or task.
+Naming Convention: Feature branches will follow the pattern feature/feature-name.
+Usage: Developers will work on feature branches in their local environment, developing and testing their changes.
+Environment-Specific Branches
+
+Each environment will have a dedicated branch to manage its specific deployment.
+QA Environment Branches: For each of the 8 QA environments, there will be a branch like qa1, qa2, etc.
+Performance Environment Branch: For performance testing, there will be a branch named perf.
+Production Environment Branch: The production environment will have a prod branch.
+Pull Request Workflow
+
+Feature to Environment Branches: Once a feature is completed, a pull request (PR) will be raised to merge the feature branch into the relevant environment-specific branch (e.g., qa1, qa2, etc.).
+Final PR to Master: After successful testing in the QA, performance, and production branches, changes will be merged into the master branch.
+This branching strategy ensures that changes can be tested in specific environments before being promoted to production.
+
+. Proposed CI/CD Workflow
+Pipeline Structure (Planned):
+
+Version Control: Code for both Lambda and Amazon Connect will be managed in separate repositories. The Lambda repository will manage the Lambda functions, while the Amazon Connect repository will handle flow configurations.
+Trigger: A CI/CD pipeline will be triggered by a Pull Request (PR) to the environment-specific branch (e.g., qa1, perf, prod). Deployment commands will be added in the PR, such as /cdk:qa1, to specify which environment to deploy to.
+Pipeline Steps:
+Build and Test: Lambda functions will be built and tested in the pipeline for the target environment.
+Deploy Lambda: Lambda functions will be deployed using AWS CDK for each environment (qa1, qa2, etc.).
+Deploy Amazon Connect Flows: Amazon Connect flows will be exported as JSON files and deployed using AWS CDK for each specific environment.
+Automated Testing: After deployment, automated tests will be executed to ensure the environment is functioning as expected.
+5. Planned Environment Management & Folder Structure
+With 10 environments (8 QA, 1 performance, 1 production), we will manage the infrastructure code for Amazon Connect and Lambda by creating environment-specific configurations in separate folders within each repository.
+
+Amazon Connect Repository Folder Structure:
+
+Lambda Repository Folder Structure:
+lambda-repo/
+  lib/
+    qa1/
+      lambdas.ts
+    qa2/
+      lambdas.ts
+    perf/
+      lambdas.ts
+    prod/
+      lambdas.ts
+Each environment will have its own instance of Amazon Connect, and this folder structure ensures isolated development and deployment per environment.
+
+6. Future Disaster Recovery (DR) Setup
+The DR strategy is under discussion and planning. We aim to ensure high availability for the performance and production environments through a potential two-region failover or two-sided deployment approach.
+
+Two-Sided Setup: During a production change, one side (e.g., Side A) will stop receiving calls, and the changes will be applied and tested on that side. Once confirmed, the changes will be rolled out to the other side (Side B).
+DR Strategy: We are exploring the option of having an active-passive setup in a secondary AWS region, where Amazon Connect and Lambdas can failover using Route 53 in the event of an outage.
+
+
+Here's the updated documentation with a branching strategy and a clarification that there will be two separate repositories: one for Lambda and another for Amazon Connect.
+
+Amazon Connect DevOps Process Documentation (Planned)
+
+1. Overview of Planned Amazon Connect DevOps Implementation
+This documentation outlines the planned DevOps pipeline for Amazon Connect and AWS Lambda across multiple environments. The goal is to automate the deployment process for Amazon Connect flows and Lambda functions, ensuring consistency and scalability across 8 QA environments, 1 performance environment, and 1 production environment. Each environment will have its own dedicated instance of Amazon Connect.
+
+Goals:
+
+Automate deployment of Amazon Connect flows and Lambda functions.
+Ensure smooth parallel development across multiple environments.
+Investigate and implement a Disaster Recovery (DR) strategy for performance and production environments.
+2. Repository Structure
+To maintain clarity and simplify deployment, we will use two separate repositories:
+
+Lambda Repository: This will contain all the code and infrastructure related to AWS Lambda functions.
+Amazon Connect Repository: This will hold all Amazon Connect flows and configurations, including infrastructure code for deployment.
+This separation helps isolate the responsibilities and ensures independent scaling of the CI/CD processes.
+
+3. Branching Strategy
+We plan to adopt a branching strategy that ensures smooth development, testing, and deployment to multiple environments:
+
+Feature Branches
+
+Purpose: Individual developers will create a feature branch for each new feature, bug fix, or task.
+Naming Convention: Feature branches will follow the pattern feature/feature-name.
+Usage: Developers will work on feature branches in their local environment, developing and testing their changes.
+Environment-Specific Branches
+
+Each environment will have a dedicated branch to manage its specific deployment.
+QA Environment Branches: For each of the 8 QA environments, there will be a branch like qa1, qa2, etc.
+Performance Environment Branch: For performance testing, there will be a branch named perf.
+Production Environment Branch: The production environment will have a prod branch.
+Pull Request Workflow
+
+Feature to Environment Branches: Once a feature is completed, a pull request (PR) will be raised to merge the feature branch into the relevant environment-specific branch (e.g., qa1, qa2, etc.).
+Final PR to Master: After successful testing in the QA, performance, and production branches, changes will be merged into the master branch.
+This branching strategy ensures that changes can be tested in specific environments before being promoted to production.
+
+4. Proposed CI/CD Workflow
+Pipeline Structure (Planned):
+
+Version Control: Code for both Lambda and Amazon Connect will be managed in separate repositories. The Lambda repository will manage the Lambda functions, while the Amazon Connect repository will handle flow configurations.
+Trigger: A CI/CD pipeline will be triggered by a Pull Request (PR) to the environment-specific branch (e.g., qa1, perf, prod). Deployment commands will be added in the PR, such as /cdk:qa1, to specify which environment to deploy to.
+Pipeline Steps:
+Build and Test: Lambda functions will be built and tested in the pipeline for the target environment.
+Deploy Lambda: Lambda functions will be deployed using AWS CDK for each environment (qa1, qa2, etc.).
+Deploy Amazon Connect Flows: Amazon Connect flows will be exported as JSON files and deployed using AWS CDK for each specific environment.
+Automated Testing: After deployment, automated tests will be executed to ensure the environment is functioning as expected.
+5. Planned Environment Management & Folder Structure
+With 10 environments (8 QA, 1 performance, 1 production), we will manage the infrastructure code for Amazon Connect and Lambda by creating environment-specific configurations in separate folders within each repository.
+
+Amazon Connect Repository Folder Structure:
+
+amazon-connect-repo/
+  lib/
+    qa1/
+      flows.ts         # Contains the specific flows and configurations for QA1
+    qa2/
+      flows.ts         # Contains the specific flows and configurations for QA2
+    perf/
+      flows.ts         # Contains the specific flows and configurations for Performance
+    prod/
+      flows.ts         # Contains the specific flows and configurations for Production
+  bin/
+    connect.ts         # This is the main CDK stack that provisions the Amazon Connect instance and other necessary resources for each environment
+  cdk.json            # CDK configuration file for the repository
+  package.json        # Node.js dependencies and scripts for the CDK application
+
+Lambda Repository Folder Structure:
+
+plaintext
+Copy code
+lambda-repo/
+  lib/
+    qa1/
+      lambdas.ts
+    qa2/
+      lambdas.ts
+    perf/
+      lambdas.ts
+    prod/
+      lambdas.ts
+Each environment will have its own instance of Amazon Connect, and this folder structure ensures isolated development and deployment per environment.
+
+6. Future Disaster Recovery (DR) Setup
+The DR strategy is under discussion and planning. We aim to ensure high availability for the performance and production environments through a potential two-region failover or two-sided deployment approach.
+
+Two-Sided Setup: During a production change, one side (e.g., Side A) will stop receiving calls, and the changes will be applied and tested on that side. Once confirmed, the changes will be rolled out to the other side (Side B).
+DR Strategy: We are exploring the option of having an active-passive setup in a secondary AWS region, where Amazon Connect and Lambdas can failover using Route 53 in the event of an outage.
+7. Monitoring and Logging
+To ensure the system is functioning as expected after every deployment, monitoring and observability will be set up:
+
+Amazon CloudWatch Metrics: Monitor the performance of Lambda functions and Amazon Connect flows.
+CloudWatch Logs: Consolidated logging for both Lambda and Amazon Connect.
+Alerts: CloudWatch alarms will be configured to send notifications via SNS for any critical issues during or after deployment.
+
+8. Security and Compliance
+IAM Roles: All Lambda functions and Amazon Connect resources will have strict, environment-specific IAM roles to ensure proper permissions and minimize access.
+Environment Isolation: QA, performance, and production environments will be isolated to ensure compliance and prevent unauthorized access between environments.
+
+
+. Parallel Development with Multiple Teams
+With multiple teams working in parallel on both Lambda and Amazon Connect flows, the following practices will be adopted to ensure efficiency:
+
+Feature Branches for Parallel Work: Developers will use feature branches to work on specific tasks without disrupting others.
+Environment-specific Branches for Deployment: Dedicated environment branches (qa1, qa2, prod, etc.) will ensure smooth testing and promotion workflows.
+Automated Testing: Tests will be executed automatically upon deployment to detect errors early and maintain code quality across environments.
+10. Future Automation and Best Practices
+Automated Rollbacks: Should a deployment fail, a rollback mechanism will be put in place to revert to the previous stable version.
+Blue/Green Deployment (Planned): In production, blue/green deployment strategies will be explored to minimize downtime.
+Testing in Performance Environment: Before any production deployment, changes will be tested in the performance environment to ensure stability.
+11. Challenges and Next Steps
+Challenges:
+
+Managing parallel development of both Lambda and Amazon Connect flows across multiple environments.
+Implementing the Disaster Recovery strategy for performance and production environments.
+Next Steps:
+
+Finalize and test the CI/CD pipeline for Lambda and Amazon Connect.
+Design and implement a DR strategy for performance and production environments.
+Validate the branching strategy and ensure all developers follow the process for smoother parallel development.
