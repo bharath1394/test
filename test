@@ -1,0 +1,82 @@
+Amazon Connect DevOps Process Documentation (Planned)
+
+1. Overview of Planned Amazon Connect DevOps Implementation
+This documentation outlines the planned DevOps pipeline for Amazon Connect and AWS Lambda across multiple environments. We are working towards automating the deployment process for Amazon Connect flows and Lambda functions, ensuring consistency and scalability across 8 QA environments, 1 performance environment, and 1 production environment.
+
+Goals:
+
+Automate deployment of Amazon Connect flows and Lambda functions.
+Ensure smooth parallel development across multiple environments.
+Investigate and implement a Disaster Recovery (DR) strategy for performance and production environments.
+
+Current State and Future Plans
+Current State: We have manual deployment of flows and Lambda functions. While some automation is in place, there is no fully implemented CI/CD pipeline for Amazon Connect.
+Future Plan: The goal is to automate these deployments using AWS CDK, and establish an environment-specific workflow for managing parallel development and deployments across QA, performance, and production environments.
+
+3. Proposed CI/CD Workflow
+Pipeline Structure (Planned):
+
+Version Control: All code will be managed in Git repositories. The plan is to use separate repositories for Lambda functions and Amazon Connect flows.
+Trigger: A CI/CD pipeline will be triggered by a Pull Request (PR) to the master branch from a feature branch. The command to specify the target environment for deployment would look like /cdk:dev1,cc1, where dev1 refers to the environment.
+Pipeline Steps:
+Build and Test: Lambda functions will be built and tested in the pipeline.
+Deploy Lambda: Lambda functions will be deployed using AWS CDK, tailored to each environment (QA1, QA2, etc.).
+Deploy Amazon Connect Flows: Amazon Connect flows will be exported as JSON files and deployed using a CDK-based process.
+Automated Testing: Automated tests will run post-deployment to ensure the environment is working as expected.
+4. Planned Environment Management & Folder Structure
+With multiple environments (8 QA, 1 Perf, 1 Prod), parallel development will be managed by organizing the infrastructure code and deployment scripts for each environment separately.
+
+Repository Structure: Separate repositories for Lambda and Amazon Connect flows will allow independent development and streamlined deployment for each.
+Environment-specific Folders: The infrastructure code (AWS CDK in TypeScript) will have environment-specific configurations in separate folders under lib/. This allows isolated development and deployment per environment.
+Example Folder Structure (Planned):
+
+
+lib/
+  qa1/
+    amazon-connect/
+      flows.ts
+      lambdas.ts
+  qa2/
+    amazon-connect/
+      flows.ts
+      lambdas.ts
+  perf/
+    amazon-connect/
+  prod/
+    amazon-connect/
+
+Future Disaster Recovery (DR) Setup
+The DR strategy is currently under discussion and planning. We aim to ensure high availability for the performance and production environments, potentially through the following mechanisms:
+
+Two-Sided Setup: Under consideration is a plan where one side (e.g., Side A) can be taken offline during a deployment, while Side B continues receiving calls. This approach will allow us to test and verify deployments on one side before rolling them out to the other.
+Disaster Recovery: We are evaluating a two-region failover approach with Amazon Route 53, enabling automatic traffic routing to a secondary region in case of failure.
+DR Next Steps:
+
+Investigate multi-region failover with Route 53.
+Design a two-sided deployment process for production to ensure minimal disruption during updates.
+6. Monitoring and Logging (Future Implementation)
+Monitoring and observability will be crucial once the automated pipeline is fully implemented. We plan to use the following tools:
+
+CloudWatch Metrics: Monitor Lambda execution times, Amazon Connect flow execution, and other critical metrics.
+CloudWatch Logs: Centralized logging for both Lambda and Amazon Connect to help with debugging and issue tracking.
+Automated Alerts: Configure CloudWatch alarms to trigger alerts through SNS when errors or performance thresholds are breached.
+7. Security and Compliance
+Security is a top priority, and we will enforce strict IAM roles and access policies for all environments.
+
+IAM Roles: Each Lambda function and Amazon Connect flow will be assigned environment-specific roles to ensure minimal privilege access.
+Environment Isolation: QA, performance, and production environments will be isolated from each other to prevent unauthorized access or data leakage.
+8. Future Automation and Best Practices
+The goal is to follow automation and best practices to ensure reliable and scalable deployments:
+
+Automated Testing: Incorporate automated testing within the CI/CD pipeline to ensure correctness and stability before any environment is updated.
+Blue/Green Deployment (Planned): For production, the blue/green deployment strategy will be used to avoid downtime.
+Rollback Mechanism: Implement rollback procedures to revert changes in case of failures during deployment.
+9. Challenges and Next Steps
+Challenges:
+
+Synchronizing Amazon Connect and Lambda flows during parallel development across multiple environments may pose coordination challenges.
+Next Steps:
+
+Complete the design of the CI/CD pipeline for both Amazon Connect flows and Lambda functions.
+Finalize the DR strategy for performance and production environments.
+Test and validate the two-sided deployment approach for production to minimize risks during updates.
