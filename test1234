@@ -1,0 +1,23 @@
+Tasks:
+
+Artifactory Migration: Successfully migrated all Azure Pipelines and Ansible playbooks to use the new JFrog SaaS Artifactory.
+CyberArk PAM Integration: Onboarded IDs to CyberArk PAM across applications and consolidated IDs from various safes into a single safe.
+CTI Listener Pipeline: Implemented the CI/CD pipeline for the CTI listener.
+WIZ Scanning: Conducted security scanning on S3 buckets and RDS instances.
+S3 Cleanup: Deleted obsolete S3 buckets that were no longer required.
+Nuance Vendor Docker Image Automation: Took ownership of resolving the long-standing issue with the Nuance vendor Docker image. Automated the process of pulling images from Nuance to our Artifactory and the QA and production deployments for these Docker applications.
+Vulnerability Patching: Took ownership of automating the vulnerability patching process for our Genesys servers, ensuring timely patching across environments.
+Projects:
+
+US-LME Project: Worked closely with multiple teams to integrate AWS services like Cognito and ElastiCache for token storage in lower environments. This involved discussions with the development team, updating security groups and IAM roles, and connecting IVR EC2 instances to these services. We are currently promoting this solution to production.
+CCaaS Solution: Worked on the documentation and deployment of the Amazon Connect solution, which included setting up flows, queues, Lambda functions, and DynamoDB using CDK.
+Proposed Initiatives:
+
+Certificates Not Managed by Venafi: Developed a proposal for automating the tracking and monitoring of vendor certificates and Azure App Registrations not covered by Venafi. This includes maintaining a JSON file in S3, using a Lambda function to check expiration, and sending notifications through SNS.
+Future Goals: Looking ahead to the next year, I plan to:
+
+Deepen my expertise in AWS cloud services.
+Focus on automating the Amazon Connect instance, flows, and related components for the IVR migration to Amazon Connect CCaaS.
+I have taken ownership of several key initiatives, such as resolving the Nuance Docker image issue, automating vulnerability patching, and leading discussions across teams for the US-LME project. I look forward to continuing to take on more responsibilities and contributing to our team's success.
+
+Thank you for your continued support and guidance.
