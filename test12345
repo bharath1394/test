@@ -1,0 +1,58 @@
+import json
+import csv
+import boto3
+from datetime import datetime, timedelta
+
+# AWS client for S3
+s3 = boto3.client('s3')
+
+# S3 bucket and object key (file path)
+S3_BUCKET = 'your-s3-bucket-name'
+CSV_KEY = 'path-to-csv/certificates.csv'
+
+# Number of days before expiry to trigger notification (90 days)
+THRESHOLD_DAYS = 90
+
+def lambda_handler(event, context):
+    try:
+        # Download the CSV file from S3
+        csv_file = s3.get_object(Bucket=S3_BUCKET, Key=CSV_KEY)
+        content = csv_file['Body'].read().decode('utf-8').splitlines()
+        
+        # Parse the CSV content
+        certificates = csv.DictReader(content)
+        
+        # Get today's date
+        today = datetime.today().date()
+        
+        # Process each certificate
+        for cert in certificates:
+            title = cert['Title']
+            valid_to_str = cert['Valid to']
+            env = cert['Env']
+            app_code = cert['App Code']
+            app_name = cert['App Name']
+            
+            # Parse the 'Valid to' date
+            valid_to = datetime.strptime(valid_to_str, '%Y-%m-%d').date()
+            
+            # Calculate the number of days until expiry
+            days_to_expiry = (valid_to - today).days
+            
+            if days_to_expiry <= THRESHOLD_DAYS:
+                # Log the certificate information if it's expiring soon
+                print(f"Certificate '{title}' for application '{app_name}' "
+                      f"({app_code}) in environment '{env}' is expiring in {days_to_expiry} days "
+                      f"(Valid to: {valid_to_str}).")
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps('Expiry check completed successfully.')
+        }
+        
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return {
+            'statusCode': 500,
+            'body': json.dumps(f"An error occurred: {str(e)}")
+        }
