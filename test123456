@@ -1,0 +1,14 @@
+CREDENTIALS=$(aws sts assume-role \
+  --role-arn arn:aws:iam::123456789012:role/SecretsAccessRole \
+  --role-session-name secretAccessSession \
+  --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' \
+  --output text)
+
+read AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< "$CREDENTIALS"
+
+aws secretsmanager get-secret-value \
+  --secret-id my-database-password \
+  --region us-east-1 \
+  --access-key $AWS_ACCESS_KEY_ID \
+  --secret-key $AWS_SECRET_ACCESS_KEY \
+  --session-token $AWS_SESSION_TOKEN
