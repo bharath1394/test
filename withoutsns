@@ -67,8 +67,20 @@ function checkExpiringCertificates(certificates) {
   const today = new Date();
 
   return certificates
-    .filter(({ 'Valid to': validTo }) => {
-      const expiryDate = parseDate(validTo);
+    .filter((cert) => {
+      const validToStr = cert['Valid to'];
+      
+      if (!validToStr) {
+        console.warn(`Skipping certificate with missing 'Valid to' field: ${JSON.stringify(cert)}`);
+        return false;
+      }
+
+      const expiryDate = parseDate(validToStr);
+      if (isNaN(expiryDate)) {
+        console.warn(`Invalid date format for certificate: ${validToStr}`);
+        return false;
+      }
+
       const daysToExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
       return daysToExpiry <= THRESHOLD_DAYS;
     })
@@ -79,9 +91,17 @@ function checkExpiringCertificates(certificates) {
 
 // Parse the 'Valid to' date (mm/dd/yyyy 12:00 AM)
 function parseDate(dateString) {
-  const [month, day, yearAndTime] = dateString.split('/');
-  const [year, time] = yearAndTime.split(' ');
+  try {
+    const [month, day, yearAndTime] = dateString.split('/');
+    const [year] = yearAndTime.split(' '); // Ignore time for simplicity
 
-  // Construct a Date object: new Date(year, month - 1, day)
-  return new Date(`${year}-${month}-${day} ${time}`);
+    const date = new Date(`${year}-${month}-${day}`);
+    if (isNaN(date)) {
+      throw new Error('Invalid date');
+    }
+    return date;
+  } catch (error) {
+    console.error(`Error parsing date: ${dateString} - ${error.message}`);
+    return NaN;
+  }
 }
