@@ -1,11 +1,14 @@
-const AWS = require('aws-sdk');
+const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const csv = require('csv-parser');
+const { Readable } = require('stream');
 
-// Environment variables
-const { S3_BUCKET, CSV_KEY, THRESHOLD_DAYS = 90 } = process.env;
+// Hardcoded S3 bucket and object details
+const S3_BUCKET = 'certmanagment';
+const S3_KEY = 'csv/cert_expiry.csv';
+const THRESHOLD_DAYS = 90; // Days before expiry to trigger notification
 
 // Initialize S3 client
-const s3 = new AWS.S3();
+const s3Client = new S3Client({ region: 'your-region' }); // Replace 'your-region' with your AWS region
 
 // Lambda handler function
 exports.lambdaHandler = async (event, context) => {
@@ -14,10 +17,10 @@ exports.lambdaHandler = async (event, context) => {
     const expiringCertificates = checkExpiringCertificates(certificates);
 
     if (expiringCertificates.length > 0) {
-      console.log("Expiring certificates:");
+      console.log('Expiring certificates:');
       expiringCertificates.forEach((message) => console.log(message));
     } else {
-      console.log("No certificates expiring within the threshold.");
+      console.log('No certificates expiring within the threshold.');
     }
 
     return {
@@ -33,14 +36,25 @@ exports.lambdaHandler = async (event, context) => {
   }
 };
 
-// Fetch certificates from S3
+// Fetch certificates from S3 using S3Client
 async function fetchCertificatesFromS3() {
-  const s3Params = { Bucket: S3_BUCKET, Key: CSV_KEY };
+  const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: S3_KEY });
+
+  try {
+    const response = await s3Client.send(command);
+    const certificates = await parseCSV(response.Body);
+    return certificates;
+  } catch (error) {
+    throw new Error(`Failed to fetch certificates from S3: ${error.message}`);
+  }
+}
+
+// Parse CSV from S3 response stream
+async function parseCSV(stream) {
   const certificates = [];
 
   return new Promise((resolve, reject) => {
-    const stream = s3.getObject(s3Params).createReadStream();
-    stream
+    Readable.from(stream)
       .pipe(csv())
       .on('data', (data) => certificates.push(data))
       .on('end', () => resolve(certificates))
@@ -54,11 +68,20 @@ function checkExpiringCertificates(certificates) {
 
   return certificates
     .filter(({ 'Valid to': validTo }) => {
-      const expiryDate = new Date(validTo);
+      const expiryDate = parseDate(validTo);
       const daysToExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
       return daysToExpiry <= THRESHOLD_DAYS;
     })
     .map(({ Title, Env, 'App Code': appCode, 'App Name': appName, 'Valid to': validTo }) => {
       return `Certificate '${Title}' for application '${appName}' (${appCode}) in environment '${Env}' is expiring on ${validTo}.`;
     });
+}
+
+// Parse the 'Valid to' date (mm/dd/yyyy 12:00 AM)
+function parseDate(dateString) {
+  const [month, day, yearAndTime] = dateString.split('/');
+  const [year, time] = yearAndTime.split(' ');
+
+  // Construct a Date object: new Date(year, month - 1, day)
+  return new Date(`${year}-${month}-${day} ${time}`);
 }
