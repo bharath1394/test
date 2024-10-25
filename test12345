@@ -2,16 +2,25 @@ import json
 import csv
 import boto3
 from datetime import datetime, timedelta
+import os
 
-# AWS client for S3
+# AWS clients for S3 and SNS
 s3 = boto3.client('s3')
+sns = boto3.client('sns')
 
-# S3 bucket and object key (file path)
-S3_BUCKET = 'your-s3-bucket-name'
-CSV_KEY = 'path-to-csv/certificates.csv'
+# Configuration from environment variables
+S3_BUCKET = os.getenv('S3_BUCKET', 'your-s3-bucket-name')
+CSV_KEY = os.getenv('CSV_KEY', 'path-to-csv/certificates.csv')
+THRESHOLD_DAYS = int(os.getenv('THRESHOLD_DAYS', 90))
+SNS_TOPIC_ARN = os.getenv('SNS_TOPIC_ARN', 'your-sns-topic-arn')
 
-# Number of days before expiry to trigger notification (90 days)
-THRESHOLD_DAYS = 90
+def send_notification(message):
+    """Send notification using SNS."""
+    sns.publish(
+        TopicArn=SNS_TOPIC_ARN,
+        Message=message,
+        Subject='Certificate Expiry Alert'
+    )
 
 def lambda_handler(event, context):
     try:
@@ -21,35 +30,49 @@ def lambda_handler(event, context):
         
         # Parse the CSV content
         certificates = csv.DictReader(content)
-        
+
         # Get today's date
         today = datetime.today().date()
-        
+
         # Process each certificate
+        expiring_certificates = []
         for cert in certificates:
-            title = cert['Title']
-            valid_to_str = cert['Valid to']
-            env = cert['Env']
-            app_code = cert['App Code']
-            app_name = cert['App Name']
-            
-            # Parse the 'Valid to' date
-            valid_to = datetime.strptime(valid_to_str, '%Y-%m-%d').date()
-            
-            # Calculate the number of days until expiry
-            days_to_expiry = (valid_to - today).days
-            
-            if days_to_expiry <= THRESHOLD_DAYS:
-                # Log the certificate information if it's expiring soon
-                print(f"Certificate '{title}' for application '{app_name}' "
-                      f"({app_code}) in environment '{env}' is expiring in {days_to_expiry} days "
-                      f"(Valid to: {valid_to_str}).")
-        
+            try:
+                title = cert['Title']
+                valid_to_str = cert['Valid to']
+                env = cert['Env']
+                app_code = cert['App Code']
+                app_name = cert['App Name']
+
+                # Parse the 'Valid to' date
+                valid_to = datetime.strptime(valid_to_str, '%Y-%m-%d').date()
+
+                # Calculate days to expiry
+                days_to_expiry = (valid_to - today).days
+
+                if days_to_expiry <= THRESHOLD_DAYS:
+                    message = (f"Certificate '{title}' for application '{app_name}' "
+                               f"({app_code}) in environment '{env}' is expiring in {days_to_expiry} days "
+                               f"(Valid to: {valid_to_str}).")
+                    expiring_certificates.append(message)
+            except KeyError as e:
+                print(f"Missing field in certificate data: {str(e)}")
+            except ValueError as e:
+                print(f"Invalid date format in certificate data: {str(e)}")
+
+        # Send notification if there are expiring certificates
+        if expiring_certificates:
+            notification_message = "\n".join(expiring_certificates)
+            send_notification(notification_message)
+            print("Notification sent.")
+        else:
+            print("No certificates expiring within the threshold.")
+
         return {
             'statusCode': 200,
             'body': json.dumps('Expiry check completed successfully.')
         }
-        
+
     except Exception as e:
         print(f"Error: {str(e)}")
         return {
