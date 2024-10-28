@@ -1,0 +1,84 @@
+const csv = require('csv-parser');
+const fs = require('fs');
+const path = require('path');
+
+// Configuration for the local file and expiry threshold
+const LOCAL_CSV_PATH = path.join(__dirname, 'cert_expiry.csv');
+const THRESHOLD_DAYS = 90; // Days before expiry to trigger notification
+
+// Main function to check expiring certificates
+async function main() {
+  try {
+    const certificates = await parseCSV(LOCAL_CSV_PATH);
+    const expiringCertificates = checkExpiringCertificates(certificates);
+
+    if (expiringCertificates.length > 0) {
+      console.log('Expiring certificates:');
+      expiringCertificates.forEach((message) => console.log(message));
+    } else {
+      console.log('No certificates expiring within the threshold.');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+// Parse the local CSV file
+function parseCSV(filePath) {
+  const certificates = [];
+
+  return new Promise((resolve, reject) => {
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on('data', (data) => certificates.push(data))
+      .on('end', () => resolve(certificates))
+      .on('error', (error) => reject(error));
+  });
+}
+
+// Check which certificates are expiring within the threshold
+function checkExpiringCertificates(certificates) {
+  const today = new Date();
+
+  return certificates
+    .filter((cert) => {
+      const validToStr = cert['Valid to'];
+
+      if (!validToStr) {
+        console.warn(`Skipping certificate with missing 'Valid to' field: ${JSON.stringify(cert)}`);
+        return false;
+      }
+
+      const expiryDate = parseDate(validToStr);
+      if (isNaN(expiryDate)) {
+        console.warn(`Invalid date format for certificate: ${validToStr}`);
+        return false;
+      }
+
+      const daysToExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+      return daysToExpiry <= THRESHOLD_DAYS;
+    })
+    .map(({ Title, Env, 'App Code': appCode, 'App Name': appName, 'Valid to': validTo }) => {
+      return `Certificate '${Title}' for application '${appName}' (${appCode}) in environment '${Env}' is expiring on ${validTo}.`;
+    });
+}
+
+// Parse the 'Valid to' date (mm/dd/yyyy 12:00 AM)
+function parseDate(dateString) {
+  try {
+    const [month, day, yearAndTime] = dateString.split('/');
+    const [year] = yearAndTime.split(' '); // Ignore time for simplicity
+
+    const date = new Date(`${year}-${month}-${day}`);
+    if (isNaN(date)) {
+      throw new Error('Invalid date');
+    }
+    return date;
+  } catch (error) {
+    console.error(`Error parsing date: ${dateString} - ${error.message}`);
+    return NaN;
+  }
+}
+
+// Run the main function locally
+main();
