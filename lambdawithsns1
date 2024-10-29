@@ -17,13 +17,31 @@ exports.handler = async (event) => {
     console.log(`Fetching certificates from S3: ${S3_BUCKET}/${S3_OBJECT_KEY}`);
 
     const certificates = await getCertificatesFromS3(S3_BUCKET, S3_OBJECT_KEY);
-    const expiringCertificates = checkExpiringCertificates(certificates);
+    const { prodCertificates, nonProdCertificates } = separateCertificates(certificates);
+    
+    const expiringProdCertificates = checkExpiringCertificates(prodCertificates);
+    const expiringNonProdCertificates = checkExpiringCertificates(nonProdCertificates);
 
-    if (expiringCertificates.length > 0) {
-      const message = formatCertificatesAsTable(expiringCertificates);
-      await sendSnsNotification(message);
+    let message = '';
+
+    if (expiringProdCertificates.length > 0) {
+      const prodTable = formatCertificatesAsTable(expiringProdCertificates);
+      console.log('Expiring Production Certificates:\n' + prodTable);
+      message += `Expiring Production Certificates:\n${prodTable}\n`;
     } else {
-      console.log('No certificates expiring within the threshold.');
+      console.log('No production certificates expiring within the threshold.');
+    }
+
+    if (expiringNonProdCertificates.length > 0) {
+      const nonProdTable = formatCertificatesAsTable(expiringNonProdCertificates);
+      console.log('Expiring Non-Production Certificates:\n' + nonProdTable);
+      message += `Expiring Non-Production Certificates:\n${nonProdTable}\n`;
+    } else {
+      console.log('No non-production certificates expiring within the threshold.');
+    }
+
+    if (message) {
+      await sendSnsNotification(message);
     }
 
     return {
@@ -92,6 +110,22 @@ function cleanRow(row) {
   }
 
   return { title, validTo, env, appCode, appName };
+}
+
+// Separate Certificates into Production and Non-Production
+function separateCertificates(certificates) {
+  const prodCertificates = [];
+  const nonProdCertificates = [];
+
+  certificates.forEach((cert) => {
+    if (cert.env.toLowerCase() === 'prod') {
+      prodCertificates.push(cert);
+    } else {
+      nonProdCertificates.push(cert);
+    }
+  });
+
+  return { prodCertificates, nonProdCertificates };
 }
 
 // Check Expiring Certificates within the Threshold
