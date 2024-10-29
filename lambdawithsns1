@@ -20,7 +20,7 @@ exports.handler = async (event) => {
     const expiringCertificates = checkExpiringCertificates(certificates);
 
     if (expiringCertificates.length > 0) {
-      const message = expiringCertificates.join('\n');
+      const message = formatCertificatesAsTable(expiringCertificates);
       await sendSnsNotification(message);
     } else {
       console.log('No certificates expiring within the threshold.');
@@ -98,19 +98,15 @@ function cleanRow(row) {
 function checkExpiringCertificates(certificates) {
   const today = new Date();
 
-  return certificates
-    .filter(({ validTo }) => {
-      const expiryDate = parseDate(validTo);
-      if (isNaN(expiryDate)) {
-        console.warn(`Invalid date format for certificate: ${validTo}`);
-        return false;
-      }
-      const daysToExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-      return daysToExpiry <= THRESHOLD_DAYS;
-    })
-    .map(({ title, env, appCode, appName, validTo }) => {
-      return `Certificate '${title}' for application '${appName}' (${appCode}) in environment '${env}' is expiring on ${validTo}.`;
-    });
+  return certificates.filter(({ validTo }) => {
+    const expiryDate = parseDate(validTo);
+    if (isNaN(expiryDate)) {
+      console.warn(`Invalid date format for certificate: ${validTo}`);
+      return false;
+    }
+    const daysToExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+    return daysToExpiry <= THRESHOLD_DAYS;
+  });
 }
 
 // Parse the 'Valid To' Date (Format: mm/dd/yyyy 12:00 AM)
@@ -128,6 +124,18 @@ function parseDate(dateString) {
     console.error(`Error parsing date: ${dateString} - ${error.message}`);
     return NaN;
   }
+}
+
+// Format Expiring Certificates as Markdown Table
+function formatCertificatesAsTable(certificates) {
+  let table = `| Title | Valid To | Environment | App Code | Application Name |\n`;
+  table += `|-------|----------|-------------|----------|------------------|\n`;
+
+  certificates.forEach(({ title, validTo, env, appCode, appName }) => {
+    table += `| ${title} | ${validTo} | ${env} | ${appCode} | ${appName} |\n`;
+  });
+
+  return table;
 }
 
 // Send SNS Notification
