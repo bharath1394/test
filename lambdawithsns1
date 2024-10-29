@@ -144,50 +144,41 @@ function parseDate(dateString) {
   }
 }
 
-// Generate HTML Content for Email Notification
+// Generate Plain Text Content for Email Notification
 function generateEmailContent(prodCertificates, nonProdCertificates) {
-  let message = '<h1>Certificate Expiry Notification</h1>';
+  let message = 'Certificate Expiry Notification\n\n';
 
   if (prodCertificates.length > 0) {
-    message += '<h2>Expiring Production Certificates</h2>';
-    message += formatCertificatesAsHtmlTable(prodCertificates);
+    message += 'Expiring Production Certificates:\n';
+    message += formatCertificatesAsPlainText(prodCertificates);
   } else {
-    message += '<p>No production certificates expiring within the threshold.</p>';
+    message += 'No production certificates expiring within the threshold.\n';
   }
 
   if (nonProdCertificates.length > 0) {
-    message += '<h2>Expiring Non-Production Certificates</h2>';
-    message += formatCertificatesAsHtmlTable(nonProdCertificates);
+    message += '\nExpiring Non-Production Certificates:\n';
+    message += formatCertificatesAsPlainText(nonProdCertificates);
   } else {
-    message += '<p>No non-production certificates expiring within the threshold.</p>';
+    message += 'No non-production certificates expiring within the threshold.\n';
   }
 
   return message;
 }
 
-// Format Expiring Certificates as HTML Table
-function formatCertificatesAsHtmlTable(certificates) {
-  let table = '<table border="1" style="border-collapse: collapse; width: 100%;">';
-  table += `<tr>
-    <th>Title</th>
-    <th>Valid To</th>
-    <th>Environment</th>
-    <th>App Code</th>
-    <th>Application Name</th>
-  </tr>`;
+// Format Expiring Certificates as Plain Text
+function formatCertificatesAsPlainText(certificates) {
+  let text = '';
 
   certificates.forEach(({ title, validTo, env, appCode, appName }) => {
-    table += `<tr>
-      <td>${title}</td>
-      <td>${validTo}</td>
-      <td>${env}</td>
-      <td>${appCode}</td>
-      <td>${appName}</td>
-    </tr>`;
+    text += `Title: ${title}\n`;
+    text += `Valid To: ${validTo}\n`;
+    text += `Environment: ${env}\n`;
+    text += `App Code: ${appCode}\n`;
+    text += `Application Name: ${appName}\n`;
+    text += '-----------------------------------\n'; // Separator for each certificate
   });
 
-  table += '</table>';
-  return table;
+  return text;
 }
 
 // Send SNS Notification
@@ -197,7 +188,6 @@ async function sendSnsNotification(message) {
       TopicArn: SNS_TOPIC_ARN,
       Message: message,
       Subject: 'Urgent: Expiring Certificates Notification',
-      MessageStructure: 'string', // Important for HTML content
     });
     await snsClient.send(command);
     console.log('SNS notification sent successfully.');
