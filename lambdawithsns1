@@ -1,163 +1,95 @@
-const csv = require('csv-parser');
-const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
-const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
-const stream = require('stream');
+const AWS = require('aws-sdk');
+const { createObjectCsvStringifier } = require('csv-writer');
 
-// Initialize S3 and SNS Clients
-const s3Client = new S3Client({ region: 'us-east-1' });
-const snsClient = new SNSClient({ region: 'us-east-1' });
+// Initialize S3 and SNS clients
+const s3 = new AWS.S3();
+const sns = new AWS.SNS();
 
-const S3_BUCKET = 'certmanagment';
-const S3_OBJECT_KEY = 'csv/cert_expiry.csv';
+const S3_BUCKET = 'certmanagement';
+const CSV_KEY = 'csv/cert_expiry.csv';
 const THRESHOLD_DAYS = 90;
-const SNS_TOPIC_ARN = 'arn:aws:sns:us-east-1:YOUR_ACCOUNT_ID:cert-expiry-topic'; // Update this
+const SNS_TOPIC_ARN = 'arn:aws:sns:your-region:your-account-id:your-sns-topic'; // Replace with your SNS topic ARN
 
 exports.handler = async (event) => {
   try {
-    console.log(`Fetching certificates from S3: ${S3_BUCKET}/${S3_OBJECT_KEY}`);
+    // Download the CSV file from S3
+    const csvFile = await s3.getObject({ Bucket: S3_BUCKET, Key: CSV_KEY }).promise();
+    const content = csvFile.Body.toString('utf-8').splitlines();
 
-    const certificates = await getCertificatesFromS3(S3_BUCKET, S3_OBJECT_KEY);
-    const { prodCertificates, nonProdCertificates } = separateCertificates(certificates);
-    
-    const expiringProdCertificates = checkExpiringCertificates(prodCertificates);
-    const expiringNonProdCertificates = checkExpiringCertificates(nonProdCertificates);
+    // Parse the CSV content
+    const certificates = parseCsv(content);
+    const today = new Date();
+    const prodCertificates = [];
+    const nonProdCertificates = [];
 
-    let message = generateEmailContent(expiringProdCertificates, expiringNonProdCertificates);
+    // Process each certificate
+    certificates.forEach(cert => {
+      const validTo = new Date(cert['Valid To']);
+      const daysToExpiry = Math.floor((validTo - today) / (1000 * 60 * 60 * 24));
+      
+      if (daysToExpiry <= THRESHOLD_DAYS) {
+        if (cert.Env.toLowerCase() === 'prod') {
+          prodCertificates.push(cert);
+        } else {
+          nonProdCertificates.push(cert);
+        }
+      }
+    });
 
-    if (message) {
-      await sendSnsNotification(message);
-    }
+    // Generate the email content
+    const emailContent = generateEmailContent(prodCertificates, nonProdCertificates);
+
+    // Send the notification
+    await sendSnsNotification(emailContent);
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: 'Expiry check completed successfully.' }),
+      body: JSON.stringify('Expiry check completed successfully.'),
     };
   } catch (error) {
     console.error('Error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: `An error occurred: ${error.message}` }),
+      body: JSON.stringify(`An error occurred: ${error.message}`),
     };
   }
 };
 
-// Fetch and Parse Certificates from S3
-async function getCertificatesFromS3(bucket, key) {
-  const command = new GetObjectCommand({ Bucket: bucket, Key: key });
-
-  try {
-    const response = await s3Client.send(command);
-    const csvData = await streamToString(response.Body);
-    return parseCSV(csvData);
-  } catch (error) {
-    console.error('Error fetching or parsing the CSV:', error);
-    throw error;
-  }
-}
-
-// Convert Stream to String
-const streamToString = (streamBody) =>
-  new Promise((resolve, reject) => {
-    const chunks = [];
-    streamBody.on('data', (chunk) => chunks.push(chunk));
-    streamBody.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
-    streamBody.on('error', reject);
-  });
-
-// Parse CSV String into JavaScript Objects
-function parseCSV(data) {
-  const rows = [];
-  return new Promise((resolve, reject) => {
-    stream.Readable.from([data])
-      .pipe(csv())
-      .on('data', (row) => {
-        const cleanedRow = cleanRow(row);
-        if (cleanedRow) rows.push(cleanedRow);
-      })
-      .on('end', () => resolve(rows))
-      .on('error', (error) => reject(error));
-  });
-}
-
-// Clean and Validate Each Row
-function cleanRow(row) {
-  const title = row['\ufeffTitle']?.trim(); // Handle BOM in Title
-  const validTo = row['Valid To']?.trim();
-  const env = row['Env']?.trim();
-  const appCode = row['APP CODE']?.trim();
-  const appName = row['Application Name']?.trim();
-
-  // Skip rows with missing critical fields
-  if (!title || !validTo || !appName) {
-    console.warn(`Skipping incomplete certificate: ${JSON.stringify(row)}`);
-    return null;
-  }
-
-  return { title, validTo, env, appCode, appName };
-}
-
-// Separate Certificates into Production and Non-Production
-function separateCertificates(certificates) {
-  const prodCertificates = [];
-  const nonProdCertificates = [];
-
-  certificates.forEach((cert) => {
-    if (cert.env.toLowerCase() === 'prod') {
-      prodCertificates.push(cert);
+// Parse CSV data and handle headers
+function parseCsv(content) {
+  const headers = content[0].split(',').map(h => h.trim());
+  const records = [];
+  
+  for (let i = 1; i < content.length; i++) {
+    const row = content[i].split(',');
+    if (row.length === headers.length) {
+      const record = {};
+      headers.forEach((header, index) => {
+        record[header] = row[index]?.trim() || ''; // Handle empty fields
+      });
+      records.push(record);
     } else {
-      nonProdCertificates.push(cert);
+      console.log('Skipping incomplete certificate:', row);
     }
-  });
-
-  return { prodCertificates, nonProdCertificates };
-}
-
-// Check Expiring Certificates within the Threshold
-function checkExpiringCertificates(certificates) {
-  const today = new Date();
-
-  return certificates.filter(({ validTo }) => {
-    const expiryDate = parseDate(validTo);
-    if (isNaN(expiryDate)) {
-      console.warn(`Invalid date format for certificate: ${validTo}`);
-      return false;
-    }
-    const daysToExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-    return daysToExpiry <= THRESHOLD_DAYS;
-  });
-}
-
-// Parse the 'Valid To' Date (Format: mm/dd/yyyy 12:00 AM)
-function parseDate(dateString) {
-  try {
-    const [month, day, yearAndTime] = dateString.split('/');
-    const [year] = yearAndTime.split(' ');
-
-    const date = new Date(`${year}-${month}-${day}`);
-    if (isNaN(date)) {
-      throw new Error('Invalid date');
-    }
-    return date;
-  } catch (error) {
-    console.error(`Error parsing date: ${dateString} - ${error.message}`);
-    return NaN;
   }
+
+  return records;
 }
 
-// Generate Plain Text Content for Email Notification
+// Generate the email content
 function generateEmailContent(prodCertificates, nonProdCertificates) {
-  let message = 'Certificate Expiry Notification\n\n';
+  let message = '# Certificate Expiry Notification\n\n';
 
   if (prodCertificates.length > 0) {
-    message += 'Expiring Production Certificates:\n';
-    message += formatCertificatesAsPlainText(prodCertificates);
+    message += '## Expiring Production Certificates\n';
+    message += formatCertificatesAsMarkdown(prodCertificates);
   } else {
     message += 'No production certificates expiring within the threshold.\n';
   }
 
   if (nonProdCertificates.length > 0) {
-    message += '\nExpiring Non-Production Certificates:\n';
-    message += formatCertificatesAsPlainText(nonProdCertificates);
+    message += '\n## Expiring Non-Production Certificates\n';
+    message += formatCertificatesAsMarkdown(nonProdCertificates);
   } else {
     message += 'No non-production certificates expiring within the threshold.\n';
   }
@@ -165,33 +97,25 @@ function generateEmailContent(prodCertificates, nonProdCertificates) {
   return message;
 }
 
-// Format Expiring Certificates as Plain Text
-function formatCertificatesAsPlainText(certificates) {
-  let text = '';
+// Format certificates as Markdown
+function formatCertificatesAsMarkdown(certificates) {
+  let text = '| Title | Valid To | Environment | App Code | Application Name |\n';
+  text += '|-------|----------|-------------|----------|------------------|\n';
 
-  certificates.forEach(({ title, validTo, env, appCode, appName }) => {
-    text += `Title: ${title}\n`;
-    text += `Valid To: ${validTo}\n`;
-    text += `Environment: ${env}\n`;
-    text += `App Code: ${appCode}\n`;
-    text += `Application Name: ${appName}\n`;
-    text += '-----------------------------------\n'; // Separator for each certificate
+  certificates.forEach(({ Title, 'Valid To': validTo, Env, 'APP CODE': appCode, 'Application Name': appName }) => {
+    text += `| ${Title} | ${validTo} | ${Env} | ${appCode} | ${appName} |\n`;
   });
 
   return text;
 }
 
-// Send SNS Notification
+// Send SNS notification
 async function sendSnsNotification(message) {
-  try {
-    const command = new PublishCommand({
-      TopicArn: SNS_TOPIC_ARN,
-      Message: message,
-      Subject: 'Urgent: Expiring Certificates Notification',
-    });
-    await snsClient.send(command);
-    console.log('SNS notification sent successfully.');
-  } catch (error) {
-    console.error('Error sending SNS notification:', error);
-  }
+  const params = {
+    Message: message,
+    Subject: 'Certificate Expiry Notification',
+    TopicArn: SNS_TOPIC_ARN,
+  };
+
+  await sns.publish(params).promise();
 }
