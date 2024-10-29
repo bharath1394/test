@@ -10,7 +10,7 @@ const snsClient = new SNSClient({ region: 'us-east-1' });
 const S3_BUCKET = 'certmanagment';
 const S3_OBJECT_KEY = 'csv/cert_expiry.csv';
 const THRESHOLD_DAYS = 90;
-const SNS_TOPIC_ARN = 'arn:aws:sns:us-east-1:YOUR_ACCOUNT_ID:cert-expiry-topic'; // Update with your topic ARN
+const SNS_TOPIC_ARN = 'arn:aws:sns:us-east-1:YOUR_ACCOUNT_ID:cert-expiry-topic'; // Update this
 
 exports.handler = async (event) => {
   try {
@@ -69,12 +69,29 @@ function parseCSV(data) {
     stream.Readable.from([data])
       .pipe(csv())
       .on('data', (row) => {
-        console.log('Parsed Row:', row);
-        rows.push(row);
+        const cleanedRow = cleanRow(row);
+        if (cleanedRow) rows.push(cleanedRow);
       })
       .on('end', () => resolve(rows))
       .on('error', (error) => reject(error));
   });
+}
+
+// Clean and Validate Each Row
+function cleanRow(row) {
+  const title = row['\ufeffTitle']?.trim(); // Handle BOM in Title
+  const validTo = row['Valid To']?.trim();
+  const env = row['Env']?.trim();
+  const appCode = row['APP CODE']?.trim();
+  const appName = row['Application Name']?.trim();
+
+  // Skip rows with missing critical fields
+  if (!title || !validTo || !appName) {
+    console.warn(`Skipping incomplete certificate: ${JSON.stringify(row)}`);
+    return null;
+  }
+
+  return { title, validTo, env, appCode, appName };
 }
 
 // Check Expiring Certificates within the Threshold
@@ -82,29 +99,17 @@ function checkExpiringCertificates(certificates) {
   const today = new Date();
 
   return certificates
-    .filter((cert) => {
-      const title = cert['Title']?.trim();
-      const validToStr = cert['Valid To']?.trim();
-      const env = cert['Env']?.trim();
-      const appCode = cert['APP CODE']?.trim();
-      const appName = cert['Application Name']?.trim();
-
-      if (!title || !validToStr) {
-        console.warn(`Skipping incomplete certificate: ${JSON.stringify(cert)}`);
-        return false;
-      }
-
-      const expiryDate = parseDate(validToStr);
+    .filter(({ validTo }) => {
+      const expiryDate = parseDate(validTo);
       if (isNaN(expiryDate)) {
-        console.warn(`Invalid date format for certificate: ${validToStr}`);
+        console.warn(`Invalid date format for certificate: ${validTo}`);
         return false;
       }
-
       const daysToExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
       return daysToExpiry <= THRESHOLD_DAYS;
     })
-    .map(({ Title, Env, 'APP CODE': appCode, 'Application Name': appName, 'Valid To': validTo }) => {
-      return `Certificate '${Title}' for application '${appName}' (${appCode}) in environment '${Env}' is expiring on ${validTo}.`;
+    .map(({ title, env, appCode, appName, validTo }) => {
+      return `Certificate '${title}' for application '${appName}' (${appCode}) in environment '${env}' is expiring on ${validTo}.`;
     });
 }
 
@@ -112,7 +117,7 @@ function checkExpiringCertificates(certificates) {
 function parseDate(dateString) {
   try {
     const [month, day, yearAndTime] = dateString.split('/');
-    const [year] = yearAndTime.split(' '); 
+    const [year] = yearAndTime.split(' ');
 
     const date = new Date(`${year}-${month}-${day}`);
     if (isNaN(date)) {
