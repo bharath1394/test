@@ -22,23 +22,7 @@ exports.handler = async (event) => {
     const expiringProdCertificates = checkExpiringCertificates(prodCertificates);
     const expiringNonProdCertificates = checkExpiringCertificates(nonProdCertificates);
 
-    let message = '';
-
-    if (expiringProdCertificates.length > 0) {
-      const prodTable = formatCertificatesAsTable(expiringProdCertificates);
-      console.log('Expiring Production Certificates:\n' + prodTable);
-      message += `Expiring Production Certificates:\n${prodTable}\n`;
-    } else {
-      console.log('No production certificates expiring within the threshold.');
-    }
-
-    if (expiringNonProdCertificates.length > 0) {
-      const nonProdTable = formatCertificatesAsTable(expiringNonProdCertificates);
-      console.log('Expiring Non-Production Certificates:\n' + nonProdTable);
-      message += `Expiring Non-Production Certificates:\n${nonProdTable}\n`;
-    } else {
-      console.log('No non-production certificates expiring within the threshold.');
-    }
+    let message = generateEmailContent(expiringProdCertificates, expiringNonProdCertificates);
 
     if (message) {
       await sendSnsNotification(message);
@@ -160,15 +144,49 @@ function parseDate(dateString) {
   }
 }
 
-// Format Expiring Certificates as Markdown Table
-function formatCertificatesAsTable(certificates) {
-  let table = `| Title | Valid To | Environment | App Code | Application Name |\n`;
-  table += `|-------|----------|-------------|----------|------------------|\n`;
+// Generate HTML Content for Email Notification
+function generateEmailContent(prodCertificates, nonProdCertificates) {
+  let message = '<h1>Certificate Expiry Notification</h1>';
+
+  if (prodCertificates.length > 0) {
+    message += '<h2>Expiring Production Certificates</h2>';
+    message += formatCertificatesAsHtmlTable(prodCertificates);
+  } else {
+    message += '<p>No production certificates expiring within the threshold.</p>';
+  }
+
+  if (nonProdCertificates.length > 0) {
+    message += '<h2>Expiring Non-Production Certificates</h2>';
+    message += formatCertificatesAsHtmlTable(nonProdCertificates);
+  } else {
+    message += '<p>No non-production certificates expiring within the threshold.</p>';
+  }
+
+  return message;
+}
+
+// Format Expiring Certificates as HTML Table
+function formatCertificatesAsHtmlTable(certificates) {
+  let table = '<table border="1" style="border-collapse: collapse; width: 100%;">';
+  table += `<tr>
+    <th>Title</th>
+    <th>Valid To</th>
+    <th>Environment</th>
+    <th>App Code</th>
+    <th>Application Name</th>
+  </tr>`;
 
   certificates.forEach(({ title, validTo, env, appCode, appName }) => {
-    table += `| ${title} | ${validTo} | ${env} | ${appCode} | ${appName} |\n`;
+    table += `<tr>
+      <td>${title}</td>
+      <td>${validTo}</td>
+      <td>${env}</td>
+      <td>${appCode}</td>
+      <td>${appName}</td>
+    </tr>`;
   });
 
+  table += '</table>';
   return table;
 }
 
@@ -178,7 +196,8 @@ async function sendSnsNotification(message) {
     const command = new PublishCommand({
       TopicArn: SNS_TOPIC_ARN,
       Message: message,
-      Subject: 'Certificate Expiry Alert',
+      Subject: 'Urgent: Expiring Certificates Notification',
+      MessageStructure: 'string', // Important for HTML content
     });
     await snsClient.send(command);
     console.log('SNS notification sent successfully.');
