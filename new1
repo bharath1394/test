@@ -1,0 +1,74 @@
+Professional Summary
+Experienced Cloud and DevOps Engineer with 8 years of expertise in designing and automating cloud-native architectures on AWS. Proficient in GitHub Actions, AWS CDK (TypeScript), and modernizing application infrastructures by migrating from legacy setups (e.g., OpenShift to ECS Fargate). Skilled in multi-account AWS structures, provisioning serverless services (Lambda, Cognito), and building secure, scalable, and automated CI/CD workflows. Proven ability to streamline application deployments using tools like Ansible Tower and foster collaboration between development and operations teams to ensure delivery excellence.
+
+Core Competencies
+Cloud Platforms
+
+AWS: Lambda, ECS Fargate, Cognito, ElastiCache (Redis), CloudFormation, CDK (TypeScript), VPC, Route 53
+Containerization: Docker, OpenShift, Kubernetes (migration expertise)
+DevOps Tools
+
+CI/CD: GitHub Actions, Jenkins, GitLab CI
+Automation: Ansible Tower, AWS Systems Manager
+IaC: AWS CDK (TypeScript), Terraform
+Monitoring: CloudWatch, Datadog, Prometheus, Grafana
+Scripting & Programming
+
+TypeScript, Python, Bash, YAML
+Other Skills
+
+Multi-account AWS architectures with cross-account roles and policies
+Application modernization and migrations (OpenShift → ECS Fargate)
+Secrets Management: AWS Secrets Manager, Parameter Store
+Professional Experience
+Senior Cloud and DevOps Engineer
+
+[Your Most Recent Company] – [City, State]
+MM/YYYY – Present
+
+Designed and implemented multi-account AWS architectures, enabling secure and isolated environments with shared services for production and non-production accounts.
+Automated application deployments across environments using GitHub Actions integrated with AWS CDK pipelines.
+Led the migration of legacy OpenShift workloads to ECS Fargate, reducing infrastructure maintenance overhead and costs.
+Provisioned serverless architectures using AWS Lambda, Cognito, and Redis ElastiCache, supporting highly scalable applications in a multi-account setup.
+Automated infrastructure provisioning and configuration using AWS CDK (TypeScript), ensuring consistency and compliance with organizational standards.
+Streamlined deployment processes using Ansible Tower, introducing self-service deployment capabilities for application teams.
+Built centralized monitoring and alerting solutions using CloudWatch and integrated dashboards for actionable insights into system health.
+Key Achievements:
+
+Migrated and modernized 50+ applications from OpenShift to ECS Fargate with minimal downtime.
+Reduced deployment time by 70% by automating CI/CD pipelines using GitHub Actions and AWS CDK.
+Improved system scalability by implementing a serverless authentication flow with AWS Cognito and reduced latency with Redis ElastiCache.
+Cloud and DevOps Engineer
+
+[Previous Company] – [City, State]
+MM/YYYY – MM/YYYY
+
+Built and maintained CI/CD pipelines using Azure DevOps and Jenkins, enabling automated deployments for microservices.
+Orchestrated workloads using Azure Kubernetes Service (AKS) and managed containerized applications for high availability.
+Automated infrastructure provisioning with Terraform and created reusable IaC modules for cross-region setups.
+Collaborated with teams to implement IAM best practices and deploy secure API Gateway integrations.
+Reduced mean time to recovery (MTTR) by 40% by setting up proactive monitoring and alerting with ELK Stack and Prometheus.
+DevOps Engineer
+
+[Another Company] – [City, State]
+MM/YYYY – MM/YYYY
+
+Deployed a centralized logging and monitoring solution using ELK Stack, increasing visibility into application logs and system metrics.
+Automated server patching and provisioning with Ansible, improving team productivity and reducing manual errors.
+Migrated legacy on-premises applications to AWS cloud using EC2, S3, and RDS, improving operational efficiency.
+Improved AWS cost management by implementing lifecycle policies for S3, optimizing EC2 instances, and using reserved instances.
+Education
+Bachelor of Technology in Computer Science
+[Your University Name] – [City, State]
+MM/YYYY
+
+Certifications
+AWS Certified Solutions Architect – Associate
+AWS Certified DevOps Engineer – Professional
+Certified Kubernetes Administrator (CKA)
+Microsoft Certified: Azure Administrator Associate
+Key Achievements
+Successfully migrated 50+ OpenShift applications to ECS Fargate, improving cost efficiency and scalability.
+Designed and automated the provisioning of multi-account AWS architectures, achieving security and resource isolation.
+Reduced operational overhead by implementing GitHub Actions CI/CD pipelines for infrastructure and application deployments.
+Implemented a serverless authentication system with AWS Cognito, supporting 10,000+ concurrent users.
