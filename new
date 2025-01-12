@@ -1,0 +1,80 @@
+Professional Summary
+Results-oriented Cloud and DevOps Engineer with 8 years of experience driving automation, scalability, and performance in cloud-based infrastructure. Expertise in designing and deploying AWS/Azure/GCP solutions, container orchestration, CI/CD pipelines, and infrastructure as code (IaC). Skilled at implementing best practices for security, cost optimization, and high availability. Adept at collaborating with cross-functional teams to deliver reliable and efficient solutions that align with business objectives.
+
+Core Competencies
+Cloud Platforms
+
+AWS: EC2, S3, RDS, Lambda, EKS, CloudFormation, IAM, CloudWatch, VPC
+Azure: AKS, Azure DevOps, App Services, Resource Manager
+GCP: Compute Engine, GKE, Cloud Storage, Pub/Sub
+DevOps Tools
+
+CI/CD: Jenkins, GitHub Actions, GitLab CI, Azure Pipelines, AWS CodePipeline
+Containers: Docker, Kubernetes (EKS, AKS, GKE), Helm
+IaC: Terraform, CloudFormation, AWS CDK, ARM templates
+Monitoring & Logging: Prometheus, Grafana, ELK, Datadog, CloudWatch
+Scripting & Programming
+
+Python, Bash, YAML, Groovy, Java
+Other Skills
+
+Configuration Management: Ansible, Chef
+Networking: DNS, Load Balancers, NAT, Route 53
+Security: IAM, Secrets Management, SSL/TLS, Security Groups
+Professional Experience
+Senior Cloud & DevOps Engineer
+
+[Your Most Recent Company] – [City, State]
+MM/YYYY – Present
+
+Designed and deployed highly available, scalable, and cost-efficient multi-cloud solutions using AWS and Azure for critical business applications.
+Automated CI/CD pipelines with Jenkins, AWS CodePipeline, and GitHub Actions, enabling deployment to production environments with zero downtime.
+Led the migration of legacy applications to AWS cloud using EC2, RDS, and S3, reducing infrastructure costs by 35%.
+Developed infrastructure as code using Terraform and CloudFormation, enabling rapid and consistent environment provisioning.
+Deployed containerized microservices with Docker and Kubernetes on EKS, integrating Helm charts for application management.
+Implemented proactive monitoring using CloudWatch, ELK, and Prometheus, improving incident detection and resolution time by 40%.
+Optimized cloud costs by implementing rightsizing, reserved instances, and S3 lifecycle policies, saving $250,000 annually.
+Cloud & DevOps Engineer
+
+[Previous Company] – [City, State]
+MM/YYYY – MM/YYYY
+
+Built secure and scalable CI/CD workflows using Azure DevOps Pipelines to deploy applications across 10+ environments.
+Orchestrated containerized workloads using Azure Kubernetes Service (AKS), achieving 99.99% uptime for mission-critical applications.
+Automated infrastructure provisioning with Terraform for cross-region deployments, ensuring consistency and disaster recovery readiness.
+Conducted performance tuning for AWS services like RDS, ElastiCache, and ALB, improving application response times by 25%.
+Collaborated with security teams to implement IAM policies, VPC configurations, and secure API Gateway integrations.
+DevOps Engineer
+
+[Another Company] – [City, State]
+MM/YYYY – MM/YYYY
+
+Designed and deployed a centralized monitoring solution using ELK Stack for logs and metrics across a hybrid infrastructure.
+Automated patch management and server provisioning with Ansible, reducing manual intervention by 60%.
+Migrated workloads from on-premises to AWS cloud, leveraging CloudFormation and Lambda for serverless automation.
+Monitored and optimized AWS resources using CloudWatch, Trusted Advisor, and Cost Explorer, ensuring operational efficiency.
+Education
+Bachelor of Technology in Computer Science
+[Your University Name] – [City, State]
+MM/YYYY
+
+Certifications
+AWS Certified Solutions Architect – Associate
+AWS Certified DevOps Engineer – Professional
+Certified Kubernetes Administrator (CKA)
+Microsoft Certified: Azure Administrator Associate
+Key Achievements
+Spearheaded the deployment of a multi-region AWS infrastructure with disaster recovery, ensuring 99.99% uptime.
+Automated CI/CD pipelines for 20+ microservices, reducing deployment errors by 70%.
+Migrated 100+ applications to containerized environments with Kubernetes, achieving faster scaling and reduced operational overhead.
+Implemented a cost-optimization strategy that saved over $300,000 annually by rightsizing instances and automating resource cleanup.
+Projects
+AWS Multi-Region Disaster Recovery Setup
+
+Designed and implemented a multi-region failover solution using Route 53, RDS read replicas, and S3 Cross-Region Replication for critical applications.
+Automated Kubernetes Deployment
+
+Automated the deployment of Kubernetes clusters using Terraform and managed workloads using Helm charts and custom scripts.
+Cloud-Native Monitoring and Alerts
+
+Configured Prometheus and Grafana for real-time application monitoring, setting up dashboards and alerts to ensure high system reliability.
