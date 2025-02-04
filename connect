@@ -1,0 +1,18 @@
+import { ConnectClient, DescribeInstanceCommand } from "@aws-sdk/client-connect";
+
+const client = new ConnectClient({ region: "us-east-1" });
+
+export const handler = async () => {
+    const instanceArn = "arn:aws:connect:us-east-1:123456789012:instance/your-instance-id";
+    const instanceId = instanceArn.split("/").pop(); // Extract instance ID correctly
+
+    try {
+        const command = new DescribeInstanceCommand({ InstanceId: instanceId });
+        const response = await client.send(command);
+        console.log("Instance Details:", response);
+        return { statusCode: 200, body: JSON.stringify(response) };
+    } catch (error) {
+        console.error("Error:", error);
+        return { statusCode: 500, body: JSON.stringify(error) };
+    }
+};
