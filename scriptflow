@@ -6,9 +6,9 @@ const accountId = process.env.accountId;
 const TargetAccountRegion = process.env.TargetAccountRegion;
 const resourceFullName = process.env.resourceFullName;
 
-const flowConfigPath = path.resolve(__dirname, `../config/flows/flowConfig.json`);
+const flowConfigPath = path.resolve(__dirname, '../config/flows/flowConfig.json');
 const connectInstancePath = path.resolve(__dirname, `../config/${stage}/connectInstance.json`);
-const controllerPath = path.resolve(__dirname, `../controller.json`);
+const controllerPath = path.resolve(__dirname, '../controller.json');
 
 function logInfo(msg) {
   console.log(`[INFO] ${msg}`);
@@ -21,18 +21,18 @@ function logError(msg) {
   process.exit(1);
 }
 
-function safeReadJson(filePath, name) {
+function safeReadJson(filePath, label) {
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
   } catch (err) {
-    logError(`Failed to read ${name} at ${filePath}: ${err.message}`);
+    logError(`Failed to read ${label} at ${filePath}: ${err.message}`);
   }
 }
 
 function getLambdaMode(controller) {
   const mode = controller?.lambda?.toUpperCase();
   if (mode === 'G' || mode === 'B') return mode;
-  logWarn(`Missing/invalid lambda mode in controller.json. Defaulting to 'G'`);
+  logWarn(`Invalid or missing lambda mode in controller.json. Defaulting to 'G'.`);
   return 'G';
 }
 
@@ -42,55 +42,52 @@ function transformLambdaArns(content, lambdaMode) {
     (match) => {
       const suffix = match.split(':').pop()?.split('-').pop();
       const updated = `arn:aws:lambda:${TargetAccountRegion}:${accountId}:function:${resourceFullName}-${lambdaMode}-${suffix}`;
-      logInfo(`Replaced Lambda ARN: ${match} → ${updated}`);
+      logInfo(`Replaced Lambda ARN:\n  [OLD] ${match}\n  [NEW] ${updated}`);
       return updated;
     }
   );
 }
 
-function transformFlowParameters(flowJson) {
+function transformFlowJson(flowJson) {
   const actions = flowJson.Actions || [];
-  const metadata = flowJson.ActionMetaData || {};
+  const metadata = flowJson.Metadata?.ActionMetaData || {};
 
-  logInfo(`Found ${actions.length} Actions and ${Object.keys(metadata).length} ActionMetaData entries.`);
+  logInfo(`Found ${actions.length} Actions.`);
+  logInfo(`Found ${Object.keys(metadata).length} ActionMetaData entries.`);
 
   for (const action of actions) {
     const actionId = action.Identifier;
     const type = action.Type;
-    const params = action.Parameters || action.parameters; // handle casing
+    const params = action.Parameters || action.parameters;
     const meta = metadata[actionId]?.parameters;
 
-    logInfo(`Processing Action → ID: ${actionId}, Type: ${type}`);
+    logInfo(`-- Processing Action ID: ${actionId}, Type: ${type}`);
 
     if (!params) {
-      logWarn(`No Parameters found for action ${actionId}`);
+      logWarn(`No parameters found in Action ID: ${actionId}`);
       continue;
     }
 
     if (!meta) {
-      logWarn(`No ActionMetaData found for action ${actionId}`);
+      logWarn(`No metadata found for Action ID: ${actionId}`);
       continue;
     }
 
     if (type === 'TransferToFlow' && params.ContactFlowId && meta.ContactFlowId?.displayName) {
       const displayName = meta.ContactFlowId.displayName;
       const ssmRef = `\${ssm:/${stage}/flows/${displayName}/arn}`;
-      logInfo(`Replacing ContactFlowId: ${params.ContactFlowId} → ${ssmRef}`);
+      logInfo(`  Replacing ContactFlowId → ${params.ContactFlowId} → ${ssmRef}`);
       params.ContactFlowId = ssmRef;
-    } else if (type === 'TransferToFlow') {
-      logWarn(`ContactFlowId or displayName missing for action ${actionId}`);
-    }
-
-    if (type === 'InvokeFlowModule' && params.FlowModuleId && meta.FlowModuleId?.displayName) {
+    } else if (type === 'InvokeFlowModule' && params.FlowModuleId && meta.FlowModuleId?.displayName) {
       const displayName = meta.FlowModuleId.displayName;
       const ssmRef = `\${ssm:/${stage}/modules/${displayName}/id}`;
-      logInfo(`Replacing FlowModuleId: ${params.FlowModuleId} → ${ssmRef}`);
+      logInfo(`  Replacing FlowModuleId → ${params.FlowModuleId} → ${ssmRef}`);
       params.FlowModuleId = ssmRef;
-    } else if (type === 'InvokeFlowModule') {
-      logWarn(`FlowModuleId or displayName missing for action ${actionId}`);
+    } else {
+      logWarn(`  No replacement performed for Action ID: ${actionId}`);
     }
 
-    // Write back to original key casing if needed
+    // Update the original key casing
     if (action.Parameters) {
       action.Parameters = params;
     } else {
@@ -101,38 +98,43 @@ function transformFlowParameters(flowJson) {
   return flowJson;
 }
 
-// MAIN EXECUTION
-logInfo(`--- Starting flow transformation for stage: ${stage} ---`);
-logInfo(`Account ID: ${accountId}, Region: ${TargetAccountRegion}, Prefix: ${resourceFullName}`);
+// MAIN
+logInfo(`--- Starting flow transformation ---`);
+logInfo(`Stage: ${stage}, Account: ${accountId}, Region: ${TargetAccountRegion}, Prefix: ${resourceFullName}`);
 
 const flowConfig = safeReadJson(flowConfigPath, 'flowConfig.json');
-const connectInstance = safeReadJson(connectInstancePath, `${stage}/connectInstance.json`);
+const connectInstance = safeReadJson(connectInstancePath, 'connectInstance.json');
 const controller = safeReadJson(controllerPath, 'controller.json');
 
-const instanceName = connectInstance?.connectInstances?.[0]?.instanceName;
-if (!instanceName) logWarn(`Instance name not found in ${stage}/connectInstance.json`);
-
 const lambdaMode = getLambdaMode(controller);
+const instanceName = connectInstance?.connectInstances?.[0]?.instanceName;
+
+if (!instanceName) {
+  logError(`Instance name not found in connectInstance.json`);
+}
 
 const stageFlows = flowConfig[stage];
-if (!stageFlows) logError(`No flows found for stage: ${stage}`);
+if (!stageFlows) {
+  logError(`No flows defined for stage: ${stage}`);
+}
 
 const flowPaths = stageFlows[instanceName];
-if (!flowPaths) logError(`No flows found for instance: ${instanceName} in stage: ${stage}`);
+if (!flowPaths || flowPaths.length === 0) {
+  logError(`No flows found for instance "${instanceName}" in stage "${stage}"`);
+}
 
-flowPaths.forEach((flowRelPath) => {
-  const fullPath = path.resolve(__dirname, '../config/flows/', flowRelPath);
-  logInfo(`\n--- Processing flow file: ${flowRelPath} ---`);
+for (const relativePath of flowPaths) {
+  const fullPath = path.resolve(__dirname, '../config/flows', relativePath);
+  logInfo(`\n>>> Processing flow: ${relativePath}`);
 
   try {
-    const originalText = fs.readFileSync(fullPath, 'utf-8');
-    const lambdaReplaced = transformLambdaArns(originalText, lambdaMode);
+    const original = fs.readFileSync(fullPath, 'utf-8');
+    const lambdaReplaced = transformLambdaArns(original, lambdaMode);
     const flowJson = JSON.parse(lambdaReplaced);
-    const updatedFlow = transformFlowParameters(flowJson);
-
-    fs.writeFileSync(fullPath, JSON.stringify(updatedFlow, null, 2));
-    logInfo(`✅ Successfully updated flow: ${flowRelPath}`);
+    const updated = transformFlowJson(flowJson);
+    fs.writeFileSync(fullPath, JSON.stringify(updated, null, 2));
+    logInfo(`✅ Flow successfully transformed: ${relativePath}`);
   } catch (err) {
-    logError(`❌ Error updating flow ${flowRelPath}: ${err.message}`);
+    logError(`❌ Failed to process flow ${relativePath}: ${err.message}`);
   }
-});
+}
