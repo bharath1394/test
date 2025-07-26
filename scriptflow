@@ -52,26 +52,49 @@ function transformFlowParameters(flowJson) {
   const actions = flowJson.Actions || [];
   const metadata = flowJson.ActionMetaData || {};
 
+  logInfo(`Found ${actions.length} Actions and ${Object.keys(metadata).length} ActionMetaData entries.`);
+
   for (const action of actions) {
     const actionId = action.Identifier;
-    const params = action.parameters;
     const type = action.Type;
+    const params = action.Parameters || action.parameters; // handle casing
     const meta = metadata[actionId]?.parameters;
 
-    if (!params || !meta) continue;
+    logInfo(`Processing Action → ID: ${actionId}, Type: ${type}`);
+
+    if (!params) {
+      logWarn(`No Parameters found for action ${actionId}`);
+      continue;
+    }
+
+    if (!meta) {
+      logWarn(`No ActionMetaData found for action ${actionId}`);
+      continue;
+    }
 
     if (type === 'TransferToFlow' && params.ContactFlowId && meta.ContactFlowId?.displayName) {
       const displayName = meta.ContactFlowId.displayName;
       const ssmRef = `\${ssm:/${stage}/flows/${displayName}/arn}`;
-      logInfo(`Replaced ContactFlowId (${actionId}) with ${ssmRef}`);
+      logInfo(`Replacing ContactFlowId: ${params.ContactFlowId} → ${ssmRef}`);
       params.ContactFlowId = ssmRef;
+    } else if (type === 'TransferToFlow') {
+      logWarn(`ContactFlowId or displayName missing for action ${actionId}`);
     }
 
     if (type === 'InvokeFlowModule' && params.FlowModuleId && meta.FlowModuleId?.displayName) {
       const displayName = meta.FlowModuleId.displayName;
       const ssmRef = `\${ssm:/${stage}/modules/${displayName}/id}`;
-      logInfo(`Replaced FlowModuleId (${actionId}) with ${ssmRef}`);
+      logInfo(`Replacing FlowModuleId: ${params.FlowModuleId} → ${ssmRef}`);
       params.FlowModuleId = ssmRef;
+    } else if (type === 'InvokeFlowModule') {
+      logWarn(`FlowModuleId or displayName missing for action ${actionId}`);
+    }
+
+    // Write back to original key casing if needed
+    if (action.Parameters) {
+      action.Parameters = params;
+    } else {
+      action.parameters = params;
     }
   }
 
@@ -79,7 +102,7 @@ function transformFlowParameters(flowJson) {
 }
 
 // MAIN EXECUTION
-logInfo(`Starting flow transformation for stage: ${stage}`);
+logInfo(`--- Starting flow transformation for stage: ${stage} ---`);
 logInfo(`Account ID: ${accountId}, Region: ${TargetAccountRegion}, Prefix: ${resourceFullName}`);
 
 const flowConfig = safeReadJson(flowConfigPath, 'flowConfig.json');
@@ -99,7 +122,7 @@ if (!flowPaths) logError(`No flows found for instance: ${instanceName} in stage:
 
 flowPaths.forEach((flowRelPath) => {
   const fullPath = path.resolve(__dirname, '../config/flows/', flowRelPath);
-  logInfo(`Processing flow: ${flowRelPath}`);
+  logInfo(`\n--- Processing flow file: ${flowRelPath} ---`);
 
   try {
     const originalText = fs.readFileSync(fullPath, 'utf-8');
