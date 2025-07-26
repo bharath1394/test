@@ -1,49 +1,55 @@
 function transformFlowJson(flowJson) {
   const flow = JSON.parse(flowJson);
 
-  if (!flow.Actions || !flow.Metadata?.ActionMetadata) {
-    logWarn(`Flow is missing required fields: Actions or Metadata.ActionMetadata`);
+  if (!flow.Actions || !flow.Metadata) {
+    logWarn(`Flow is missing 'Actions' or 'Metadata'`);
     return flow;
   }
 
+  // Ensure ActionMetadata key exists with correct casing
   const metadata = flow.Metadata.ActionMetadata;
+  if (!metadata || typeof metadata !== 'object') {
+    logWarn(`No 'ActionMetadata' found in Metadata. Metadata dump:`, JSON.stringify(flow.Metadata, null, 2));
+    return flow;
+  }
+
   logInfo('Loaded ActionMetadata keys:', Object.keys(metadata));
 
   for (const action of flow.Actions) {
     const actionId = String(action.Identifier);
     const metaEntry = metadata[actionId];
 
+    logInfo(`-- Processing Action ID: ${actionId}, Type: ${action.Type}`);
     if (!metaEntry) {
-      logWarn(`No metadata found for actionId ${actionId}`);
+      logWarn(`---- No metadata found for actionId ${actionId}`);
       continue;
     }
 
     const metaParams = metaEntry?.parameters;
     if (!metaParams) {
-      logWarn(`No parameters found in metadata for actionId ${actionId}`);
+      logWarn(`---- No parameters found in metadata for actionId ${actionId}`);
       continue;
     }
 
     const parameters = action.Parameters || {};
-    logInfo(`Processing actionId ${actionId}, Type: ${action.Type}`);
 
-    // Check and replace ContactFlowId
+    // Replace ContactFlowId
     if (parameters.ContactFlowId && metaParams.ContactFlowId?.displayName) {
       const displayName = metaParams.ContactFlowId.displayName;
       const ssmPath = `\${ssm:/${stage}/flows/${displayName}/arn}`;
-      logInfo(`Replacing ContactFlowId for action ${actionId} with ${ssmPath}`);
+      logInfo(`---- Replacing ContactFlowId with ${ssmPath}`);
       parameters.ContactFlowId = ssmPath;
     }
 
-    // Check and replace FlowModuleId
+    // Replace FlowModuleId
     if (parameters.FlowModuleId && metaParams.FlowModuleId?.displayName) {
       const displayName = metaParams.FlowModuleId.displayName;
       const ssmPath = `\${ssm:/${stage}/modules/${displayName}/id}`;
-      logInfo(`Replacing FlowModuleId for action ${actionId} with ${ssmPath}`);
+      logInfo(`---- Replacing FlowModuleId with ${ssmPath}`);
       parameters.FlowModuleId = ssmPath;
     }
 
-    action.Parameters = parameters; // Ensure assignment after transformation
+    action.Parameters = parameters;
   }
 
   return flow;
