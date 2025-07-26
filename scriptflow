@@ -22,22 +22,21 @@ function logError(message) {
   console.error(`[ERROR] ${message}`);
 }
 
-function safeReadJson(filePath) {
+function safeReadJson(filePath, name) {
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
   } catch (err) {
-    logError(`Failed to read or parse ${filePath}: ${err.message}`);
+    logError(`Failed to read ${name} at ${filePath}: ${err.message}`);
     process.exit(1);
   }
 }
 
-function getLambdaMode(controllerPath) {
-  const controller = safeReadJson(controllerPath);
+function getLambdaMode(controller) {
   const lambdaMode = controller?.lambda?.toUpperCase();
   if (lambdaMode === 'G' || lambdaMode === 'B') {
     return lambdaMode;
   }
-  logWarn(`Invalid or missing lambda mode in controller.json, defaulting to 'G'`);
+  logWarn(`Missing or invalid lambda mode in controller.json. Defaulting to 'G'.`);
   return 'G';
 }
 
@@ -47,70 +46,88 @@ function transformLambdaArns(content, lambdaMode) {
     (match) => {
       const fnSuffix = match.split(':').pop()?.split('-').pop();
       const newArn = `arn:aws:lambda:${TargetAccountRegion}:${accountId}:function:${resourceFullName}-${lambdaMode}-${fnSuffix}`;
-      logInfo(`Lambda ARN transformed: ${match} → ${newArn}`);
+      logInfo(`Replaced Lambda ARN: ${match} → ${newArn}`);
       return newArn;
     }
   );
 }
 
-function transformContactFlows(flowObj, instanceId) {
-  const meta = flowObj?.ActionMetaData || {};
-  const actions = flowObj?.Actions || [];
+function transformFlowParameters(flowJson, instanceId) {
+  const actions = flowJson.Actions || [];
+  const metadata = flowJson.ActionMetaData || {};
 
   for (const action of actions) {
-    const id = action.Identifier;
-    const type = action.Type;
+    const actionId = action.Identifier;
+    const actionType = action.Type;
     const params = action.parameters;
 
-    if (!id || !meta[id] || !params) continue;
+    if (!params || !metadata[actionId] || !metadata[actionId].parameters) continue;
 
-    const metaParams = meta[id].parameters || {};
+    const metaParams = metadata[actionId].parameters;
 
-    if (type === 'TransferToFlow' && params.ContactFlowId && metaParams.ContactFlowId?.displayName) {
+    if (actionType === 'TransferToFlow' && params.ContactFlowId && metaParams.ContactFlowId?.displayName) {
       const displayName = metaParams.ContactFlowId.displayName;
-      const ssmPath = `\${ssm:/${stage}/flows/${displayName}/arn}`;
-      logInfo(`Replacing ContactFlowId in action ${id} with ${ssmPath}`);
-      params.ContactFlowId = ssmPath;
+      const ssmValue = `\${ssm:/${stage}/flows/${displayName}/arn}`;
+      logInfo(`Replaced ContactFlowId for action ${actionId}: ${params.ContactFlowId} → ${ssmValue}`);
+      params.ContactFlowId = ssmValue;
     }
 
-    if (type === 'InvokeFlowModule' && params.FlowModuleId && metaParams.FlowModuleId?.displayName) {
+    if (actionType === 'InvokeFlowModule' && params.FlowModuleId && metaParams.FlowModuleId?.displayName) {
       const displayName = metaParams.FlowModuleId.displayName;
-      const ssmPath = `\${ssm:/${stage}/modules/${displayName}/id}`;
-      logInfo(`Replacing FlowModuleId in action ${id} with ${ssmPath}`);
-      params.FlowModuleId = ssmPath;
+      const ssmValue = `\${ssm:/${stage}/modules/${displayName}/id}`;
+      logInfo(`Replaced FlowModuleId for action ${actionId}: ${params.FlowModuleId} → ${ssmValue}`);
+      params.FlowModuleId = ssmValue;
     }
   }
 
-  return flowObj;
+  return flowJson;
 }
 
-// === Main Execution ===
-const lambdaMode = getLambdaMode(controllerPath);
-const flowConfig = safeReadJson(flowConfigPath);
-const instanceMap = safeReadJson(connectInstancePath);
+// === MAIN SCRIPT ===
+logInfo(`Stage: ${stage}`);
+logInfo(`Account ID: ${accountId}`);
+logInfo(`Target Region: ${TargetAccountRegion}`);
+logInfo(`Resource Name Prefix: ${resourceFullName}`);
 
-const flowMap = flowConfig[stage] || {};
+const flowConfig = safeReadJson(flowConfigPath, 'flowConfig.json');
+const connectInstances = safeReadJson(connectInstancePath, 'connectInstance.json');
+const controller = safeReadJson(controllerPath, 'controller.json');
 
-Object.entries(flowMap).forEach(([instanceName, flowList]) => {
-  const instanceId = instanceMap[stage]?.[instanceName];
+const lambdaMode = getLambdaMode(controller);
+
+const flowsForStage = flowConfig[stage];
+if (!flowsForStage) {
+  logError(`No flows found for stage: ${stage}`);
+  process.exit(1);
+}
+
+Object.entries(flowsForStage).forEach(([instanceName, flowPaths]) => {
+  const instanceId = connectInstances[stage]?.[instanceName];
   if (!instanceId) {
-    logWarn(`Instance ID not found for ${stage} / ${instanceName}`);
+    logWarn(`Instance ID not found for stage "${stage}", instance "${instanceName}"`);
+  } else {
+    logInfo(`Using Connect Instance ID for ${stage}/${instanceName}: ${instanceId}`);
   }
 
-  flowList.forEach((flowRelPath) => {
-    const fullFlowPath = path.resolve(__dirname, `../config/flows/${flowRelPath}`);
+  flowPaths.forEach((flowRelPath) => {
+    const fullFlowPath = path.resolve(__dirname, '../config/flows/', flowRelPath);
+    logInfo(`Processing flow: ${flowRelPath}`);
+
     try {
       const originalContent = fs.readFileSync(fullFlowPath, 'utf-8');
 
-      const lambdaUpdatedContent = transformLambdaArns(originalContent, lambdaMode);
-      const flowJson = JSON.parse(lambdaUpdatedContent);
+      // Step 1: Replace Lambda ARNs in text
+      const lambdaTransformed = transformLambdaArns(originalContent, lambdaMode);
 
-      const updatedFlow = transformContactFlows(flowJson, instanceId);
+      // Step 2: Replace Flow ARNs and Module IDs using Metadata
+      const parsedJson = JSON.parse(lambdaTransformed);
+      const updatedFlow = transformFlowParameters(parsedJson, instanceId);
 
+      // Step 3: Write updated flow file
       fs.writeFileSync(fullFlowPath, JSON.stringify(updatedFlow, null, 2));
-      logInfo(`✅ Successfully transformed flow: ${flowRelPath}`);
+      logInfo(`✅ Flow updated successfully: ${flowRelPath}`);
     } catch (err) {
-      logError(`❌ Error processing ${flowRelPath}: ${err.message}`);
+      logError(`❌ Failed to process flow ${flowRelPath}: ${err.message}`);
     }
   });
 });
