@@ -1,0 +1,69 @@
+🛠️ How It Works
+When CDK runs for a specific environment (stage), the process will:
+Replace Lambda ARNs with the correct stage/account-specific ARN format.
+Replace references to:
+ContactFlowId (used in TransferFlow actions)
+FlowModuleId (used in InvokeFlowModule actions)
+with SSM parameter references based on display names.
+Replace URLs like https://api.cloud.net/dev1-lob → https://${domainUrl}/${stage}-lob.
+All transformations happen automatically before CDK deploys the flows.
+
+
+ Auto-Transformation Logic
+When running build.sh, the transformFlows.js script will:
+✅ Replace hardcoded Lambda ARNs with:
+
+arn:aws:lambda:<region>:<account>:function:<resourceFullName>-G|B-<suffix>
+✅ Replace hardcoded ContactFlowId with:
+"${ssm:/<stage>/flows/<displayName>/arn}"
+✅ Replace hardcoded FlowModuleId with:
+"${ssm:/<stage>/modules/<displayName>/id}"
+✅ Replace API URLs like:
+"https://api.cloud.net/dev1-lob" → "https://${domainUrl}/${stage}-lob"
+
+  Flow Dependencies (IMPORTANT)
+If a flow references another flow or module, those dependencies must be created first.
+Example:
+If mainFlow.json contains a TransferToFlow that points to welcomeFlow, then welcomeFlow must be deployed first in that stage.
+CDK handles this order if all flows are included in flowConfig.json.
+🆔 Action Identifiers (Required)
+When exporting flows from Amazon Connect, make sure that any action that refers to another flow or module has an Identifier and a corresponding entry in ActionMetaData.
+Example Snippet from a Flow:
+"ActionMetaData": {
+  "111002": {
+    "parameters": {
+      "ContactFlowId": {
+        "displayName": "ivr01identification"
+      }
+    }
+  }
+},
+"Actions": [
+  {
+    "Identifier": "111002",
+    "Type": "TransferToFlow",
+    "Parameters": {
+      "ContactFlowId": "arn:aws:connect:..."
+    }
+  }
+]
+✅ Always use valid and unique identifiers (like 111002) for actions that refer to flows or modules.
+
+
+
+  ✅ Developer Steps
+🔄 Export the flow from the Amazon Connect GUI.
+📁 Copy the flow JSON into the appropriate folder:
+config/flows/CONTACT_FLOW/ or AGENT_HOLD/
+📝 Update flowConfig.json:
+"dev1": {
+  "connect-instance": ["CONTACT_FLOW/newFlow.json"]
+}
+🧠 Ensure identifiers and ActionMetaData are set for any TransferFlow or InvokeFlowModule.
+🧪 Run build.sh to validate that all transformations work.
+🚀 Trigger GitHub Actions or manually run cdk deploy --context stage=dev1
+💬 Support
+If any transformation isn't happening:
+✅ Ensure displayNames in ActionMetaData are correct.
+✅ Make sure your flowConfig.json and controller.json are valid.
+✅ Check logs printed from transformFlows.js during the build.
