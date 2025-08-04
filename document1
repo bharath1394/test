@@ -1,0 +1,118 @@
+Certainly! Here's the updated Confluence-style documentation that includes:
+Automatic transformation of flows and modules
+Storage of flow ARNs and module IDs in SSM
+How getSSMValue() is used in the connect-flow.ts stack
+Complete developer steps
+📘 Amazon Connect Flow Deployment – Developer Guide
+This guide outlines the standardized process for developing and deploying Amazon Connect Flows and Flow Modules across multiple environments using CDK automation.
+🔁 Overview
+Our automation ensures that flows and modules can be exported from the Connect GUI and deployed without manual changes by dynamically transforming references to:
+Lambda ARNs
+Contact Flow ARNs
+Flow Module IDs
+URLs
+📂 Project Structure
+config/
+  ├── dev1/
+  │   └── connectInstance.json
+  ├── qa1/
+  │   └── connectInstance.json
+  └── flows/
+      ├── CONTACT_FLOW/
+      │   └── welcomeFlow.json
+      ├── AGENT_HOLD/
+      │   └── holdFlow.json
+      └── flowConfig.json
+controller.json
+scripts/
+  ├── transformFlow.ts
+  └── transformFlowModule.ts
+🔄 How the Transformation Works
+When running build.sh, the following occurs:
+✅ Lambda ARNs are transformed using the stage/account info and mode from controller.json:
+
+arn:aws:lambda:<region>:<accountId>:function:<resourceFullName>-G|B-<suffix>
+✅ Contact Flow ARNs and Flow Module IDs are transformed to SSM references using display names from ActionMetaData.
+✅ URLs like:
+
+"https://api.cloud.net/dev1-lob"
+are transformed to:
+"https://${domainUrl}/${stage}-lob"
+📄 SSM Parameter Strategy
+We store reusable flow ARNs and module IDs in SSM Parameter Store, such as:
+/dev1/flows/welcomeFlow/arn
+/dev1/modules/holdModule/id
+Then in your flow JSON, these are transformed as:
+"ContactFlowId": "${ssm:/dev1/flows/welcomeFlow/arn}"
+"FlowModuleId": "${ssm:/dev1/modules/holdModule/id}"
+🧠 getSSMValue() in CDK Stack
+In the AmazonConnectFlowStack, we resolve SSM paths like this:
+const flowArn = getSSMValue(this, '/dev1/flows/welcomeFlow/arn');
+const moduleId = getSSMValue(this, '/dev1/modules/holdModule/id');
+This ensures dynamic resolution based on the environment being deployed.
+⚠️ Flow Dependency Rules
+Flows and modules that are referenced inside another flow must be created first.
+Example:
+If mainFlow.json references welcomeFlow, then welcomeFlow must be deployed first.
+CDK manages this if flowConfig.json lists them in correct order.
+
+🆔 Required: Identifiers in ActionMetaData
+Any flow that references another flow or module must have the correct ActionMetaData.
+Sample:
+"ActionMetaData": {
+  "111002": {
+    "parameters": {
+      "ContactFlowId": {
+        "displayName": "welcomeFlow"
+      }
+    }
+  }
+},
+"Actions": [
+  {
+    "Identifier": "111002",
+    "Type": "TransferToFlow",
+    "Parameters": {
+      "ContactFlowId": "arn:aws:connect:..."
+    }
+  }
+]
+🟢 This tells the transformer to replace the ContactFlowId with a corresponding SSM reference.
+📝 Developer Workflow
+1. Export your flow/module from Amazon Connect.
+2. Copy it into the appropriate folder:
+config/flows/CONTACT_FLOW/
+config/flows/AGENT_HOLD/
+3. Update flowConfig.json:
+"dev1": {
+  "connect-instance": [
+    "CONTACT_FLOW/welcomeFlow.json",
+    "AGENT_HOLD/holdFlow.json"
+  ]
+}
+4. ✅ Make sure:
+The flow has Identifiers and ActionMetaData
+Any reused flow/module has its SSM parameter created beforehand
+5. ✅ Confirm controller.json mode is set:
+{
+  "lambda": "G" // or "B"
+}
+6. 🛠 Run build.sh
+This will:
+Transform Lambda ARNs
+Insert ${ssm:/...} for ContactFlows and Modules
+Rewrite any URLs with the environment name
+7. 🚀 Trigger CDK Deployment:
+cdk deploy --context stage=dev1
+🧪 Example of Transformed JSON
+{
+  "Type": "TransferToFlow",
+  "Identifier": "111002",
+  "Parameters": {
+    "ContactFlowId": "${ssm:/dev1/flows/welcomeFlow/arn}"
+  }
+}
+🆘 Troubleshooting
+No transformation? Ensure displayName is correctly defined.
+Flow skipped? Check flowConfig.json and folder path.
+Incorrect order? Make sure dependent flows/modules are created first.
