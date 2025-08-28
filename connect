@@ -1,18 +1,66 @@
-import { ConnectClient, DescribeInstanceCommand } from "@aws-sdk/client-connect";
+import * as cdk from "aws-cdk-lib";
+import { Construct } from "constructs";
+import * as fs from "fs";
+import * as path from "path";
+import { CfnContactFlow } from "aws-cdk-lib/aws-connect";
 
-const client = new ConnectClient({ region: "us-east-1" });
+function normalizeFlowType(type: string | undefined): string {
+  return type ? type.replace(/([a-z])([A-Z])/g, "$1_$2").toUpperCase() : "CONTACT_FLOW";
+}
 
-export const handler = async () => {
-    const instanceArn = "arn:aws:connect:us-east-1:123456789012:instance/your-instance-id";
-    const instanceId = instanceArn.split("/").pop(); // Extract instance ID correctly
-
-    try {
-        const command = new DescribeInstanceCommand({ InstanceId: instanceId });
-        const response = await client.send(command);
-        console.log("Instance Details:", response);
-        return { statusCode: 200, body: JSON.stringify(response) };
-    } catch (error) {
-        console.error("Error:", error);
-        return { statusCode: 500, body: JSON.stringify(error) };
+function walkDir(dir: string, fileList: string[] = []): string[] {
+  const files = fs.readdirSync(dir);
+  for (const file of files) {
+    const filePath = path.join(dir, file);
+    const stat = fs.statSync(filePath);
+    if (stat.isDirectory()) {
+      walkDir(filePath, fileList);
+    } else if (file.endsWith(".json")) {
+      fileList.push(filePath);
     }
-};
+  }
+  return fileList;
+}
+
+function loadFlows(configDir: string) {
+  const files = walkDir(configDir);
+
+  return files.map(filePath => {
+    const json = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    const type = normalizeFlowType(json?.Metadata?.type);
+
+    return {
+      name: json?.Metadata?.name || path.basename(filePath, ".json"),
+      description: json?.Metadata?.description || "",
+      type,
+      content: JSON.stringify(json),
+    };
+  });
+}
+
+export class ConnectFlowsStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps & { instanceId: string; stage: string }) {
+    super(scope, id, props);
+
+    const { instanceId, stage } = props!;
+    const flowsDir = path.resolve(__dirname, "../config/flows");
+
+    const flows = loadFlows(flowsDir);
+
+    flows.forEach(flow => {
+      const resource = new CfnContactFlow(this, `${flow.name}Flow`, {
+        instanceArn: instanceId,
+        name: `${stage}-${flow.name}`,
+        description: flow.description,
+        type: flow.type, // e.g., CONTACT_FLOW, AGENT_HOLD
+        content: flow.content,
+      });
+
+      // SSM parameter to store ARN for reuse
+      new cdk.aws_ssm.StringParameter(this, `${flow.name}FlowParam`, {
+        parameterName: `/${stage}/flows/${flow.name}/arn`,
+        stringValue: resource.attrContactFlowArn,
+      });
+    });
+  }
+}
